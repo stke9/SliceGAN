@@ -14,17 +14,17 @@ def trainer(Proj,imtype,datatype,real_data, Disc, Gen, isotropic):
         real_data*=3
     Proj = util.mkdr(Proj)
     pth = Proj + '/' + Proj
-
+    print('Loading Dataset...')
     datasetxyz = BatchMaker.Batch(real_data[0],real_data[1],real_data[2],datatype, TI = True)
     ## Constants for NNs
     ngpu=1
     batch_size=32
     l=64
-    nc=3
+    nc=2
     nz=64
     num_epochs=50
-    lrg=0.0001
-    lr =0.0002
+    lrg=0.0004
+    lr =0.0001
     beta1 =0
     beta2 =0.9
     Lambda =10
@@ -140,7 +140,7 @@ def trainer(Proj,imtype,datatype,real_data, Disc, Gen, isotropic):
                         else:
                             output = netD(fake[:, :, :, :, lyr]).view(-1)
                         #Calculate error for this plane
-                        errG -= output.mean()
+                        errG -= output.mean()/64
                         GL_Tot += output.mean()/(l*3)
                         # Calculate gradients for G
                 errG.backward()

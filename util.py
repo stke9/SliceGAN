@@ -63,7 +63,7 @@ def calc_ETA(steps, time, start, i, epoch, num_epochs):
 ## Plotting Utils
 def PostProc(img,imtype):
     if imtype == 'colour':
-        return 255*np.swapaxes(img[0], 0, -1)
+        return (128*(1+np.swapaxes(img[0], 0, -1))).astype('int')
     if imtype == 'twophase':
         sqrs = np.zeros(img.shape[2:])
         p1 = np.array(img[0][0])
@@ -103,15 +103,32 @@ def show_img(img):
 def test_img(Proj, imtype, netG, nz = 64, lf = 1, show = False):
     netG.load_state_dict(torch.load(Proj + '/' + Proj + '_Gen.pt'))
     netG.eval()
-    noise = torch.randn(1, nz, lf, lf, lf)
-    img = netG(noise).detach()
+    noise = torch.randn(32, nz, lf, lf, lf)
+    raw = netG(noise)
     print('Postprocessing')
-    gb = PostProc(img,imtype)
+    gb = PostProc(raw.detach().numpy(),imtype)
+    # gb[gb[:,:,:,2]<200] = 0
+    # gb[gb[:,:,:,1]<200] = 0
+
     tif = np.int_(gb)
-    tifffile.imwrite(Proj + '.tif', tif)
+    tifffile.imwrite(Proj + '/' + Proj + '.tif', tif)
     if show:
         show_img(tif)
-    return tif
+    return tif,raw
+def angleslices(img,ch,bs):
+    x,y  = torch.randint(0,18,(2,1))
+    ang1 = torch.zeros([bs, ch, 64, 64])
+    ang2 = torch.zeros([bs, ch, 64, 64])
+    for j in range(64):
+        ang1[:, :, j, :] = img[:, :, int(j/ 2 ** 0.5)+int(x), int(j/ 2 ** 0.5)+int(y), :]
+        ang2[:, :, j, :] = img[:, :, -(int(j/ 2 ** 0.5)+int(x)), int(j/ 2 ** 0.5)+int(y), :]
+    return ang1,ang2
 
-
-
+def TP(img,l):
+    twoP = []
+    for phs in [1,2,3]:
+        twoP_phs=[1-np.count_nonzero(img-phs)/img.size]
+        for r in range(1,l):
+            twoP_phs.append(1 - np.count_nonzero(img[r:]+img[:-r]-phs*2)/img[r:].size)
+        twoP.append(twoP_phs)
+    return twoP

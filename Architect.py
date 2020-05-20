@@ -27,7 +27,8 @@ def Architect(dl,dk,ds,ndfs, gl,gk,gs,ngfs):
         def forward(self, x):
             for conv,bn in zip(self.convs[:-1],self.bns[:-1]):
                 x = F.relu_(bn(conv(x)))
-            out = torch.sigmoid(self.convs[-1](x))
+            # out = torch.sigmoid(self.convs[-1](x))
+            out = torch.softmax(self.convs[-1](x),1)
             return out
     print (g_pad, d_pad)
     class DiscriminatorWGAN(nn.Module):
