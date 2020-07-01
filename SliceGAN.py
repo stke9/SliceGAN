@@ -1,33 +1,33 @@
-#### Welcome to SliceGAN ###
-####### Steve Kench ########
-
+### Welcome to SliceGAN ###
+####### Steve Kench #######
 from TrainTest import trainer
 from Architect import Architect
 import util
 
+## make directory
+Project_name = 'sep_type2' #Creates directory with output images
+Project_dir = 'Seperator/'
+
 ## Data Processing
-Project_name = 'Sep_im128' #Creates directory with output images
-image_type = 'threephase' # threephase, twophase or colour
-data_type = 'array2D' # png, jpg, tif, array, array2D
-data_path = ['Seg_sep.png'] # path to training data.
+image_type = 'twophase' # threephase, twophase or colour
+data_type = 'tif' # png, jpg, tif, array, array2D
+data_path = ['Examples/img_stack_1200_2500_1200_high_reso_biphase_V2.tif'] # path to training data.
 isotropic = True
+Training = False # Run with False to show an image during training
+Project_path = util.mkdr(Project_name, Project_dir, Training)
 
 ## Network Architectures
-imsize, channels = 64, 3
-
-dl, gl = [imsize,32,16,8,4,1], [1,4,8,16,32, imsize]                  # disc & gen layer sizes
-dk, gk = [4,4,4,4,4], [4,4,4,4,4]                                    # kernal sizes
-ds, gs = [2,2,2,2,1], [1,2,2,2,2]                                    # strides
-df, gf = [channels,64,128,256,256,1], [64,256,256,128,64, channels] # filter sizes for hidden layers
+imsize, nz,  channels = 128, 32, 2
+dk, gk = [4,4,4,4,4,4], [4,4,4,4,4,4]                                    # kernal sizes
+ds, gs = [2,2,2,2,2,2], [2,2,2,2,2,2]                                    # strides
+df, gf = [channels,32,64,128,256,256,1], [nz,512,256,128,64,32, channels]  # filter sizes for hidden layers
+dp, gp = [3,2,2,2,2,2],[2,2,2,2,2,3]
 ##Create Networks
-netD, netG = Architect(dl, dk, ds, df, gl, gk ,gs, gf)
-
-##Train
-Training = False # Run with False to show an image during training
+netD, netG = Architect(Project_path, Training, dk, ds, df,dp, gk ,gs, gf, gp)
 
 if Training:
-    trainer(Project_name,image_type,data_type,data_path, netD, netG, isotropic)
+    data = trainer(Project_path, image_type, data_type, data_path, netD, netG, isotropic, channels, imsize, nz)
 
 ##Save tif/ show full volume
 else:
-    img, raw = util.test_img(Project_name,image_type,netG(),show = False , lf = 1)
+    img, raw, netG = util.test_img(Project_path, image_type,netG(),nz, show = False , lf = 4)

@@ -8,21 +8,18 @@ import matplotlib.pyplot as plt
 import BatchMaker
 import time
 import util as util
+import matplotlib
 
-def trainer(Proj,imtype,datatype,real_data, Disc, Gen, isotropic):
+def trainer(pth,imtype,datatype,real_data, Disc, Gen, isotropic, nc, l, nz):
     if len(real_data) == 1:
         real_data*=3
-    Proj = util.mkdr(Proj)
-    pth = Proj + '/' + Proj
     print('Loading Dataset...')
-    datasetxyz = BatchMaker.Batch(real_data[0],real_data[1],real_data[2],datatype, TI = True)
+    datasetxyz = BatchMaker.Batch(real_data[0],real_data[1],real_data[2],datatype,l, TI = True)
     ## Constants for NNs
+    matplotlib.use('Agg')
     ngpu=1
     batch_size=32
-    l=64
-    nc=2
-    nz=64
-    num_epochs=50
+    num_epochs=30
     lrg=0.0004
     lr =0.0001
     beta1 =0
@@ -77,7 +74,7 @@ def trainer(Proj,imtype,datatype,real_data, Disc, Gen, isotropic):
             gp_log = 0
             ### Discriminator
             ## Generate fake image batch with G
-            noise = torch.randn(batch_size, nz, 1, 1, 1, device=device)
+            noise = torch.randn(batch_size, nz, 4,4,4, device=device)
             fake_data = netG(noise).detach()
             #For each dimension
             for dim, (netD, optimizer, data) in enumerate(zip(netDs, optDs, dataset)):
@@ -121,7 +118,7 @@ def trainer(Proj,imtype,datatype,real_data, Disc, Gen, isotropic):
                 GL_Tot = 0  # Gen Loss (ideal 0)
                 netG.zero_grad()
                 errG=0
-                noise = torch.randn(batch_size, nz, 1, 1, 1, device=device)
+                noise = torch.randn(batch_size, nz, 4,4,4, device=device)
                 noise.requires_grad_(True)
                 fake = netG(noise)
                 # For each dimension
@@ -140,7 +137,7 @@ def trainer(Proj,imtype,datatype,real_data, Disc, Gen, isotropic):
                         else:
                             output = netD(fake[:, :, :, :, lyr]).view(-1)
                         #Calculate error for this plane
-                        errG -= output.mean()/64
+                        errG -= output.mean()/l
                         GL_Tot += output.mean()/(l*3)
                         # Calculate gradients for G
                 errG.backward()
@@ -152,7 +149,7 @@ def trainer(Proj,imtype,datatype,real_data, Disc, Gen, isotropic):
                 gp.append(gp_log)
                 torch.save(netG.state_dict(), pth + '_Gen.pt')
                 torch.save(netD.state_dict(), pth + '_Disc.pt')
-                noise = torch.randn(1, nz, 1, 1, 1, device = device)
+                noise = torch.randn(1, nz, 4,4,4, device = device)
                 img = netG(noise).detach().cpu().numpy()
                 ###Print progress
                 ## calc ETA
@@ -178,3 +175,6 @@ def trainer(Proj,imtype,datatype,real_data, Disc, Gen, isotropic):
                 plt.plot(gp)
                 plt.savefig(pth + 'gp.png')
                 plt.close()
+            if i % 250 == 0 or i ==1:
+                print('Checking filters at iter ', i)
+                util.filt_var(netG,Proj, i, epoch)

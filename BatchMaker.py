@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 from skimage import io
-def Batch(img1,img2,img3,type,TI):
+def Batch(img1,img2,img3,type,l,TI):
     Testing=TI
 
     if type == 'array2D':
@@ -11,8 +11,7 @@ def Batch(img1,img2,img3,type,TI):
         img = plt.imread(img1)
         if len(img.shape)>2:
             img = img[:,:,0]
-        l = 64
-        img = img[::2,::2]
+        # img = img[::2,::2]
         x_max, y_max= img.shape[:]
         data = np.empty([32 * 900, 2, l, l])
         phases = np.unique(img)
@@ -78,35 +77,30 @@ def Batch(img1,img2,img3,type,TI):
     elif type=='tif':
         datasetxyz=[]
         img = np.array(io.imread(img1))
-        img = img[::8,::8,::8]
-        img = np.swapaxes(img,2,1)
-        fig, axs = plt.subplots(3,4)
-        [axi.set_axis_off() for axi in axs.ravel()]
-        check_ori(img,[0,0,1],fig,axs)
+        img = img[::4,::4,::4]
         ## Create a data store and add random samples from the full image
-        l = 64
-        dim = 0
         x_max, y_max, z_max = img.shape[:]
         print(img.shape)
         vals = np.unique(img)
-
+        print(len(vals))
         for dim in range(3):
-            data = np.empty([32 * 900, 3, l, l])
+            data = np.empty([32 * 900, len(vals), l, l])
             print(dim)
             for i in range(32*900):
                 x = np.random.randint(0, x_max - l)
                 y = np.random.randint(0, y_max - l)
-                z = np.random.randint(0, z_max-1)
+                z = np.random.randint(0, z_max - l)
                 # create one channel per phase for one hot encoding
+                lay = np.random.randint(img.shape[dim]-1)
                 for cnt,phs in enumerate(list(vals)):
                     img1 = np.zeros([l,l])
-                    if dim==1:
-                        img1[img[x:x + l,z, y:y + l] == phs] = 1
-                    elif dim==2:
-                        img1[img[z, x:x + l, y:y + l] == phs] = 1
+                    if dim==0:
+                        img1[img[lay, y:y + l, z:z + l] == phs] = 1
+                    elif dim==1:
+                        img1[img[x:x + l,lay, z:z + l] == phs] = 1
                     else:
-                        img1[img[x:x + l, y:y + l, z] == phs] = 1
-                    data[i, cnt, :, :] = np.swapaxes(img1[:,:],0,1)
+                        img1[img[x:x + l, y:y + l,lay] == phs] = 1
+                    data[i, cnt, :, :] = np.swapaxes(img1[:,:],1,0)
 
             if Testing:
                 for j in range(2):
