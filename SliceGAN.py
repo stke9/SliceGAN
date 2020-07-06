@@ -2,7 +2,7 @@
 ####### Steve Kench #######
 from TrainTest import trainer
 from Architect import Architect
-import util
+from Pckgs import util
 
 ## make directory
 Project_name = 'sep_type2' #Creates directory with output images
@@ -30,4 +30,4 @@ if Training:
 
 ##Save tif/ show full volume
 else:
-    img, raw, netG = util.test_img(Project_path, image_type,netG(),nz, show = False , lf = 4)
+    img, raw, netG = util.test_img(Project_path, image_type, netG(), nz, show = False, lf = 4)
