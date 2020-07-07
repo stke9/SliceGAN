@@ -1,11 +1,11 @@
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
-from skimage import io
+import tifffile
 def Batch(img1,img2,img3,type,l,TI):
     Testing=TI
 
-    if type == 'array2D':
+    if type == 'png' or type == 'jpg':
         datasetxyz = []
         #img = np.load(img1)
         img = plt.imread(img1)
@@ -76,7 +76,7 @@ def Batch(img1,img2,img3,type,l,TI):
             datasetxyz.append(dataset)
     elif type=='tif':
         datasetxyz=[]
-        img = np.array(io.imread(img1))
+        img = np.array(tifffile.imread(img1))
         img = img[::4,::4,::4]
         ## Create a data store and add random samples from the full image
         x_max, y_max, z_max = img.shape[:]

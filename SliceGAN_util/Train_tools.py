@@ -1,10 +1,10 @@
+import os
+from torch import nn
+import torch
+from torch import autograd
 import numpy as np
 import matplotlib.pyplot as plt
-import os
 import tifffile
-import torch
-import torch.nn as nn
-import torch.autograd as autograd
 ## Training Utils
 def mkdr(proj,proj_dir,Training):
     pth = proj_dir + proj
@@ -67,7 +67,10 @@ def calc_ETA(steps, time, start, i, epoch, num_epochs):
 
 ## Plotting Utils
 def PostProc(img,imtype):
-    img = img.detach().cpu()
+    try:
+        img = img.detach().cpu()
+    except:
+        print(img)
     if imtype == 'colour':
         return (128*(1+np.swapaxes(img[0], 0, -1))).astype('int')
     if imtype == 'twophase':

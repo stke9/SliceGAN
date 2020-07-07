@@ -2,19 +2,16 @@ import torch
 import torch.nn as nn
 import torch.backends.cudnn as cudnn
 import torch.optim as optim
-#import torch.utils.data
 import numpy as np
 import matplotlib.pyplot as plt
-import BatchMaker
 import time
-import util as util
 import matplotlib
-
+from SliceGAN_util import BatchMaker, Train_tools
 def trainer(pth,imtype,datatype,real_data, Disc, Gen, isotropic, nc, l, nz):
     if len(real_data) == 1:
         real_data*=3
     print('Loading Dataset...')
-    datasetxyz = BatchMaker.Batch(real_data[0],real_data[1],real_data[2],datatype,l, TI = True)
+    datasetxyz = BatchMaker.Batch(real_data[0], real_data[1], real_data[2], datatype, l, TI = False)
     ## Constants for NNs
     matplotlib.use('Agg')
     ngpu=1
@@ -42,7 +39,7 @@ def trainer(pth,imtype,datatype,real_data, Disc, Gen, isotropic, nc, l, nz):
 
     # Create the Genetator network
     netG = Gen().to(device)
-    netG.apply(util.weights_init)
+    netG.apply(Train_tools.weights_init)
     if('cuda' in str(device)) and (ngpu > 1):
         netG = nn.DataParallel(netG, list(range(ngpu)))
     optG = optim.Adam(netG.parameters(), lr=lrg, betas=(beta1, beta2))
@@ -51,15 +48,16 @@ def trainer(pth,imtype,datatype,real_data, Disc, Gen, isotropic, nc, l, nz):
     netDs = []
     optDs = []
     for i in range(3):
-        netD = Disc().apply(util.weights_init)
+        netD = Disc().apply(Train_tools.weights_init)
         if ('cuda' in str(device)) and (ngpu > 0):
             netD = (nn.DataParallel(netD, list(range(ngpu)))).to(device)
         netDs.append(netD)
         optDs.append(optim.Adam(netDs[i].parameters(), lr=lr, betas=(beta1, beta2)))
 
-    disc_real=[]
-    disc_fake=[]
-    gp=[]
+    disc_real_log=[]
+    disc_fake_log=[]
+    gp_log=[]
+    Wass_log = []
 
     print("Starting Training Loop...")
     # For each epoch
@@ -69,9 +67,6 @@ def trainer(pth,imtype,datatype,real_data, Disc, Gen, isotropic, nc, l, nz):
         for i, (datax, datay, dataz) in enumerate(zip(dataloaderx, dataloadery, dataloaderz),1):
             dataset = [datax,datay,dataz]
             ### Initialise
-            DL_real = 0
-            DL_fake = 0
-            gp_log = 0
             ### Discriminator
             ## Generate fake image batch with G
             noise = torch.randn(batch_size, nz, 4,4,4, device=device)
@@ -88,7 +83,6 @@ def trainer(pth,imtype,datatype,real_data, Disc, Gen, isotropic, nc, l, nz):
                 netD.zero_grad()
                 # Forward pass real batch through D
                 out_real = netD(real_data).view(-1).mean()
-                DL_real += out_real.item()/3
                 #train on fake images
                 out_fake=0
                 gradient_penalty = 0
@@ -106,13 +100,15 @@ def trainer(pth,imtype,datatype,real_data, Disc, Gen, isotropic, nc, l, nz):
                     ## Update variables for this individual plane
                     # Calculate D's loss on the all-fake batch
                     out_fake += output.mean()/l
-                    DL_fake += output.mean()/(3*l)
                     # Calculate the gradients for this batch
-                    gradient_penalty += util.calc_gradient_penalty(netD, real_data, fake_data_slice, batch_size, l, device, Lambda,nc)/l
+                    gradient_penalty += Train_tools.calc_gradient_penalty(netD, real_data, fake_data_slice, batch_size, l, device, Lambda, nc) / l
                 disc_cost = out_fake - out_real + gradient_penalty
                 disc_cost.backward()
-                gp_log += gradient_penalty.item()
                 optimizer.step()
+            disc_real_log.append(out_real.item())
+            disc_fake_log.append(out_fake.item())
+            Wass_log.append(out_real.item()- out_fake.item())
+            gp_log.append(gradient_penalty.item())
             ### Generator Training
             if i % int(critic_iters) == 0:
                 GL_Tot = 0  # Gen Loss (ideal 0)
@@ -142,39 +138,19 @@ def trainer(pth,imtype,datatype,real_data, Disc, Gen, isotropic, nc, l, nz):
                         # Calculate gradients for G
                 errG.backward()
                 optG.step()
-                disc_real.append(DL_real)
-                disc_fake.append(DL_fake)
             # Output training stats & show imgs
             if i % 25 == 0:
-                gp.append(gp_log)
                 torch.save(netG.state_dict(), pth + '_Gen.pt')
                 torch.save(netD.state_dict(), pth + '_Disc.pt')
                 noise = torch.randn(1, nz, 4,4,4, device = device)
-                img = netG(noise).detach().cpu().numpy()
+                img = netG(noise)
                 ###Print progress
                 ## calc ETA
                 steps = len(dataloaderx)
-                util.calc_ETA(steps,time.time(),start,i,epoch,num_epochs)
+                Train_tools.calc_ETA(steps, time.time(), start, i, epoch, num_epochs)
                 ###save example slices
-                sqrs = util.PostProc(img,imtype)
-                util.Plotter(sqrs,5,imtype)
-                plt.show()
-                plt.savefig(pth +'slices.png')
-                plt.close()
-                #plotting graphs
-                disc_real_arr = np.asarray(disc_real).reshape(int((i+(epoch*steps))/int(critic_iters)), -1).mean(axis=1)
-                disc_fake_arr = np.asarray(disc_fake).reshape(int((i+(epoch*steps))/int(critic_iters)), -1).mean(axis=1)
-                plt.figure()
-                plt.plot(disc_real[::10])
-                plt.plot(disc_fake[::10])
-                plt.savefig(pth +'Lossgraph.png')
-                plt.clf()
-                plt.plot(disc_fake_arr-disc_real_arr)
-                plt.savefig(pth + 'Wass_dist.png')
-                plt.clf()
-                plt.plot(gp)
-                plt.savefig(pth + 'gp.png')
-                plt.close()
-            if i % 250 == 0 or i ==1:
-                print('Checking filters at iter ', i)
-                util.filt_var(netG,Proj, i, epoch)
+                Train_tools.TestPlotter(img, 5, imtype, pth)
+                # plotting graphs
+                Train_tools.GraphPlot([disc_real_log, disc_fake_log],['real', 'perp'], pth, 'LossGraph')
+                Train_tools.GraphPlot([Wass_log], ['Wass Distance'], pth, 'WassGraph')
+                Train_tools.GraphPlot([gp_log], ['Gradient Penalty'], pth, 'GpGraph')
