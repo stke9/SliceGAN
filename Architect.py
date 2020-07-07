@@ -22,6 +22,7 @@ def Architect(pth, Training, dk,ds,df,dp,gk,gs,gf,gp):
             self.convs = nn.ModuleList()
             self.bns = nn.ModuleList()
             for lay, (k,s,p) in enumerate(zip(gk,gs,gp)):
+                print(lay,k,s,p)
                 self.convs.append(nn.ConvTranspose3d(gf[lay], gf[lay+1], k, s, p, bias=False))
                 self.bns.append(nn.BatchNorm3d(gf[lay+1]))
 

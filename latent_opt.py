@@ -1,13 +1,9 @@
 import torch
 from torch import nn
 import numpy as np
-import cv2
-import tifffile
-import os
 from matplotlib import pyplot as plt
-from Train import trainer
 from Architect import Architect
-import util
+from Pckgs import util
 
 ## Data Processing
 Project_name = 'NMC_filttest' #Creates directory with output images
@@ -125,4 +121,4 @@ for j in range(64):
 #     st = 4*j
 #     fin = 4*(j+1)
 #     newnoise[:,:,st:fin,:,:] = noises[j]
-# im = util.PostProc(netG(newnoise).detach().cpu(), image_type)
+# im = SliceGAN_util.PostProc(netG(newnoise).detach().cpu(), image_type)

@@ -3,18 +3,15 @@ import torch.nn as nn
 import torch.backends.cudnn as cudnn
 import torch.optim as optim
 #import torch.utils.data
-import numpy as np
-import matplotlib.pyplot as plt
-import BatchMaker
 import time
-import util as util
+from Pckgs import util as util, BatchMaker
 import matplotlib
 
 def trainer(pth,imtype,datatype,real_data, Disc, Gen, isotropic, nc, l, nz):
     if len(real_data) == 1: real_data*=3
 
     print('Loading Dataset...')
-    datasetxyz = BatchMaker.Batch(real_data[0],real_data[1],real_data[2],datatype,l, TI = True)
+    datasetxyz = BatchMaker.Batch(real_data[0], real_data[1], real_data[2], datatype, l, TI = True)
     matplotlib.use('Agg')
 
     ## Constants for NNs
@@ -110,7 +107,7 @@ def trainer(pth,imtype,datatype,real_data, Disc, Gen, isotropic, nc, l, nz):
                 # For each dimension
                 for dim, (netD, d1, d2) in enumerate(zip(netDs, [2, 3], [3, 2])):
                     fake_data_p = fake_data.permute(0, d1, 1, d2, 4).reshape(l*G_batch_size, nc, l, l)
-                    fake_data_ang = util.angslcs(fake_data, l, G_batch_size,dim)
+                    fake_data_ang = util.angslcs(fake_data, l, G_batch_size, dim)
                     errG -= netD(fake_data_p).mean()
                     errG -= netD(fake_data_ang).mean()
                 errG.backward()
@@ -127,9 +124,9 @@ def trainer(pth,imtype,datatype,real_data, Disc, Gen, isotropic, nc, l, nz):
                 #plot test images
                 noise = torch.randn(1, nz, 4,4,4, device = device)
                 img = netG(noise)
-                util.TestPlotter(img,5,imtype,pth)
+                util.TestPlotter(img, 5, imtype, pth)
                 #plotting graphs
-                util.GraphPlot([disc_real_log,disc_fake_log, disc_ang_log[0],disc_ang_log[1]],['real','perp','ang1','ang2'], pth, 'LossGraph')
+                util.GraphPlot([disc_real_log, disc_fake_log, disc_ang_log[0], disc_ang_log[1]], ['real', 'perp', 'ang1', 'ang2'], pth, 'LossGraph')
                 util.GraphPlot([Wass_log, Gen_log], ['Wass Distance', 'Generator Loss'], pth, 'WassGraph')
                 util.GraphPlot([gp_log], ['Gradient Penalty'], pth, 'GpGraph')
 
