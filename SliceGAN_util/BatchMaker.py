@@ -100,7 +100,7 @@ def Batch(img1,img2,img3,type,l,TI):
                         img1[img[x:x + l,lay, z:z + l] == phs] = 1
                     else:
                         img1[img[x:x + l, y:y + l,lay] == phs] = 1
-                    data[i, cnt, :, :] = np.swapaxes(img1[:,:],1,0)
+                    data[i, cnt, :, :] = img1[:,:]
 
             if Testing:
                 for j in range(2):

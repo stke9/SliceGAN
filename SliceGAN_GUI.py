@@ -9,32 +9,35 @@ import torch
 import torch.nn as nn
 import threading
 
+## Window class
 class Window(Frame):
     def __init__(self, master = None):
         Frame.__init__(self, master)
         self.master = master
         self.init_window()
 
+    #initialise Window
     def init_window(self):
+        #Add title and basics
         self.master.title('SliceGAN')
         self.nb = ttk.Notebook(self.master)
         self.nb.pack(side = TOP, fill = BOTH, expand = 1)
         self.master.columnconfigure(0, weight=1)
         self.master.rowconfigure(0, weight=1)
         self.nz = 32
-        ##First frame: Training image Loading
-        self.init_f1()
 
-        ## add pages to notbook
+        ##Init home frame
+        self.init_f1()
         self.nb.add(self.f1, text = 'Home')
 
     def init_f1(self):
+        # initialise variables and buttons in frame 1
+        self.f1 = Frame(self.nb)
 
         self.pro = 0
         self.training_image_size = 64
         self.channels = 2
         self.imgs = []
-        self.f1 = Frame(self.nb)
         self.statuslab = Label(self.f1, text='status: Image Loading')
         self.statuslab.grid(column=0, row=7, columnspan=3, sticky='sw')
         self.resize_with_window()
@@ -56,8 +59,7 @@ class Window(Frame):
         self.imgs.append(self.Img(0, 'red', self))
 
     def init_f2(self):
-        ## Init page 2
-
+        ## Initialise variables and buttons Architecture frame
 
         self.f2 = Frame(self.nb)
         self.master.bind('<Return>', self.update_nets)
@@ -69,6 +71,7 @@ class Window(Frame):
         self.update_nets()
 
         ttk.Separator(self.f2, orient=HORIZONTAL).grid(column=0, row=6, rowspan=6)
+
     def update_nets(self, event = None):
         self.net_imwidth = max(self.nets[0].lay_num, self.nets[1].lay_num)
         for net in self.nets:
@@ -123,16 +126,6 @@ class Window(Frame):
         for img in self.imgs:
             img.update()
 
-
-
-
-    # def set_img_sizes(self):
-    #     try :
-    #         self.training_image_size = float(self.sizeEntry.get())
-    #         self.update_images()
-    #     except:
-    #         print('enter number')
-    #         return
     def auto_params(self, auto):
         self.nz = 32
         if auto:
@@ -231,6 +224,7 @@ class Window(Frame):
 
     def stop(self):
         self.master.destroy()
+
     def start(self):
 
         status = self.pretrain_checks()
