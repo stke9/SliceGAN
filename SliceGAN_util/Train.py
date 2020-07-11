@@ -171,6 +171,7 @@ def transfer_trainer(pth,imtype,datatype,real_data, Disc, Gen, isotropic, nc, l,
     matplotlib.use('Agg')
     ngpu=1
     batch_size=32
+    D_batch_size = 8
     num_epochs=3
     lrg=0.0004
     lr =0.0001
@@ -200,10 +201,20 @@ def transfer_trainer(pth,imtype,datatype,real_data, Disc, Gen, isotropic, nc, l,
     optG = optim.Adam(netG.parameters(), lr=lrg, betas=(beta1, beta2))
 
     m = 5 - al
-    for q, p in enumerate(netG.parameters()):  # reset requires_grad
-        if q < m or 4<q<(m*2)+5:
+    for q, (p, name) in enumerate(zip(netG.parameters(), netG.state_dict())):  # reset requires_grad
+        if 5 > q > al - 1 or q > ((al - 1) * 2) + 6:
             p.requires_grad_(False)
-
+            print('Gen lay off: ', q)
+        elif 'conv' in name:
+            print('Gen lay conv init rand:', q)
+            # nn.init.normal_(p, 0, 0.02)
+        else:
+            if q % 2 != 0:
+                # nn.init.normal_(p, 1.0, 0.02)
+                print('Gen lay weight init rand:', q)
+            else:
+                # nn.init.constant_(p, 0)
+                print('Gen lay bias init rand:', q)
     # Define 1 discriminator and optimizer for each plane in each dimension
     netDs = []
     optDs = []
@@ -212,8 +223,13 @@ def transfer_trainer(pth,imtype,datatype,real_data, Disc, Gen, isotropic, nc, l,
         if ('cuda' in str(device)) and (ngpu > 0):
             netD = (nn.DataParallel(netD, list(range(ngpu)))).to(device)
         netD.load_state_dict(torch.load(trans_paths[1]))
-        for p in netD.parameters():
-            p.requires_grad_(False)
+        for q, p in enumerate(netD.parameters()):  # reset requires_grad
+            if q > m-1:
+                # nn.init.normal_(p,0,0.02)
+                print('Disc lay rand init: ', q)
+            else:
+                p.requires_grad_(False)
+                print('disc lay off: ', q)
         netDs.append(netD)
         optDs.append(optim.Adam(netDs[i].parameters(), lr=lr, betas=(beta1, beta2)))
 
@@ -232,15 +248,16 @@ def transfer_trainer(pth,imtype,datatype,real_data, Disc, Gen, isotropic, nc, l,
             ### Initialise
             ### Discriminator
             ## Generate fake image batch with G
-            noise = torch.randn(batch_size, nz, 4,4,4, device=device)
+            noise = torch.randn(D_batch_size, nz, 4,4,4, device=device)
             fake_data = netG(noise).detach()
             #For each dimension
-            for dim, (netD, optimizer, data) in enumerate(zip(netDs, optDs, dataset)):
+            start_disc = time.time()
+            for dim, (netD, optimizer, data, d1, d2, d3) in enumerate(zip(netDs, optDs, dataset, [2, 3, 4], [3, 2, 2], [4, 4, 3])):
                 if isotropic:
                     netD = netDs[0]
                     optimizer = optDs[0]
                 for q,p in enumerate(netD.parameters()):  # reset requires_grad
-                    if q < al:
+                    if q > m - 1:
                         p.requires_grad_(True)
 
                 ##train on real images
@@ -249,32 +266,64 @@ def transfer_trainer(pth,imtype,datatype,real_data, Disc, Gen, isotropic, nc, l,
                 # Forward pass real batch through D
                 out_real = netD(real_data).view(-1).mean()
                 #train on fake images
-                out_fake=0
                 gradient_penalty = 0
-                for lyr in range(l):
-                    # Cycling through the planes of each orientation
-                    if dim == 0:
-                        fake_data_slice = fake_data[:, :, lyr, :, :]
-                        output = netD(fake_data_slice).view(-1)
-                    elif dim == 1:
-                        fake_data_slice = fake_data[:, :, :, lyr, :]
-                        output = netD(fake_data_slice).view(-1)
-                    else:
-                        fake_data_slice = fake_data[:, :, :, :, lyr]
-                        output = netD(fake_data_slice).view(-1)
-                    ## Update variables for this individual plane
-                    # Calculate D's loss on the all-fake batch
-                    out_fake += output.mean()/l
-                    # Calculate the gradients for this batch
-                    gradient_penalty += Train_tools.calc_gradient_penalty(netD, real_data, fake_data_slice, batch_size, l, device, Lambda, nc) / l
+                fake_data_perm = fake_data.permute(0, d1, 1, d2, d3).reshape(l * D_batch_size, nc, l, l)
+                out_fake = netD(fake_data_perm).mean()/(l * D_batch_size/batch_size)
+                gradient_penalty += Train_tools.calc_gradient_penalty(netD, real_data, fake_data_perm[:batch_size], batch_size, l,
+                                                                      device, Lambda, nc)
+                backg_start = time.time()
                 disc_cost = out_fake - out_real + gradient_penalty
                 disc_cost.backward()
                 optimizer.step()
-            disc_real_log.append(out_real.item())
+                disc_real_log.append(out_real.item())
+
+
+            # for dim, (netD, optimizer, data) in enumerate(zip(netDs, optDs, dataset)):
+            #
+            #     if isotropic:
+            #         netD = netDs[0]
+            #         optimizer = optDs[0]
+            #     for q,p in enumerate(netD.parameters()):  # reset requires_grad
+            #         if q > m - 1:
+            #             p.requires_grad_(True)
+            #
+            #     ##train on real images
+            #     real_data = data[0].to(device)
+            #     netD.zero_grad()
+            #     # Forward pass real batch through D
+            #     out_real = netD(real_data).view(-1).mean()
+            #     #train on fake images
+            #     out_fake=0
+            #     gradient_penalty = 0
+            #     for lyr in range(l):
+            #         # Cycling through the planes of each orientation
+            #         if dim == 0:
+            #             fake_data_slice = fake_data[:, :, lyr, :, :]
+            #             output = netD(fake_data_slice).view(-1)
+            #         elif dim == 1:
+            #             fake_data_slice = fake_data[:, :, :, lyr, :]
+            #             output = netD(fake_data_slice).view(-1)
+            #         else:
+            #             fake_data_slice = fake_data[:, :, :, :, lyr]
+            #             output = netD(fake_data_slice).view(-1)
+            #         ## Update variables for this individual plane
+            #         # Calculate D's loss on the all-fake batch
+            #         out_fake += output.mean()/l
+            #         # Calculate the gradients for this batch
+            #         gradient_penalty += Train_tools.calc_gradient_penalty(netD, real_data, fake_data_slice, batch_size, l, device, Lambda, nc) / l
+            #     disc_cost = out_fake - out_real + gradient_penalty
+            #     backg_start = time.time()
+            #     disc_cost.backward()
+            #     optimizer.step()
+            #     disc_real_log.append(out_real.item())
+            print('Dback 1 run: ', time.time() - backg_start)
+            fin_disc = time.time() - start_disc
+            print('1 disc run 3dir: ', fin_disc)
             disc_fake_log.append(out_fake.item())
             Wass_log.append(out_real.item()- out_fake.item())
             gp_log.append(gradient_penalty.item())
             ### Generator Training
+            start_gen = time.time()
             if i % int(critic_iters) == 0:
                 GL_Tot = 0  # Gen Loss (ideal 0)
                 netG.zero_grad()
@@ -283,6 +332,9 @@ def transfer_trainer(pth,imtype,datatype,real_data, Disc, Gen, isotropic, nc, l,
                 noise.requires_grad_(True)
                 fake = netG(noise)
                 # For each dimension
+                #del from here
+
+                #to here
                 for dim, netD in enumerate(netDs):
                     if isotropic:
                         netD = netDs[0]
@@ -301,10 +353,15 @@ def transfer_trainer(pth,imtype,datatype,real_data, Disc, Gen, isotropic, nc, l,
                         errG -= output.mean()/l
                         GL_Tot += output.mean()/(l*3)
                         # Calculate gradients for G
+                Gback_start = time.time()
                 errG.backward()
+                print('Gback: ', time.time() - Gback_start)
                 optG.step()
             # Output training stats & show imgs
+                fin_gen = time.time() - start_gen
+                print('gen 1 run: ', fin_gen)
             if i % 25 == 0:
+                start_save = time.time()
                 torch.save(netG.state_dict(), pth + '_Gen.pt')
                 torch.save(netD.state_dict(), pth + '_Disc.pt')
                 noise = torch.randn(1, nz, 4,4,4, device = device)
@@ -319,6 +376,8 @@ def transfer_trainer(pth,imtype,datatype,real_data, Disc, Gen, isotropic, nc, l,
                 Train_tools.GraphPlot([disc_real_log, disc_fake_log],['real', 'perp'], pth, 'LossGraph')
                 Train_tools.GraphPlot([Wass_log], ['Wass Distance'], pth, 'WassGraph')
                 Train_tools.GraphPlot([gp_log], ['Gradient Penalty'], pth, 'GpGraph')
+                fin_save = time.time() - start_save
+                print('save: ', fin_save)
             if i% 300 ==0:
                 noise = torch.randn(1, nz, 8,8,8, device = device)
                 raw = netG(noise)

@@ -4,7 +4,7 @@
 from SliceGAN_util import *
 
 ## make directory
-Project_name = '' #Creates directory with output images
+Project_name = 'params' #Creates directory with output images
 Project_dir = 'transfer_learning/'
 Trained_gen_pth = 'NMC/NMC_filttest/NMC_filttest_Gen.pt'
 Trained_disc_pth = 'NMC/NMC_filttest/NMC_filttest_Disc.pt'
@@ -25,8 +25,8 @@ df, gf = [channels,64,128,26,512,1], [nz,512,256,128,64,channels]  # filter size
 dp, gp = [3,2,2,2,2],[2,2,2,2,3]
 ##Create Networks
 netD, netG = Architect(Project_path, Training, dk, ds, df,dp, gk ,gs, gf, gp)
-for active_layers in [1,2,3,4,5]:
-    Project_name = 'transfer_' + str(active_layers) + '_active_layers'  # Creates directory with output images
+for active_layers in [5,4,3,2,1]:
+    Project_name = 'transfer_timetest' + str(active_layers) + '_active_layers'  # Creates directory with output images
     Project_path = mkdr(Project_name , Project_dir, Training)
 
     data = transfer_trainer(Project_path, image_type, data_type, data_path, netD, netG, isotropic, channels, imsize, nz, trans_pths,active_layers)

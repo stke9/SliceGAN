@@ -12,7 +12,7 @@ image_type = 'threephase' # threephase, twophase or colour
 data_type = 'tif' # png, jpg, tif, array, array2D
 data_path = ['Examples/img_stack_1200_2500_1200_high_reso_biphase_porosity55.tiff'] # path to training data.
 isotropic = False
-Training = True # Run with False to show an image during training
+Training = False # Run with False to show an image during training
 Project_path = mkdr(Project_name, Project_dir, Training)
 
 ## Network Architectures
@@ -24,9 +24,9 @@ dp, gp = [3,2,2,2,2],[2,2,2,2,3]
 ##Create Networks
 netD, netG = Architect(Project_path, Training, dk, ds, df,dp, gk ,gs, gf, gp)
 
-if Training:
-    data = trainer(Project_path, image_type, data_type, data_path, netD, netG, isotropic, channels, imsize, nz)
-
-##Save tif/ show full volume
-else:
-    img, raw, netG = test_img(Project_path, image_type, netG(), nz, show = False, lf = 4)
+# if Training:
+#     data = trainer(Project_path, image_type, data_type, data_path, netD, netG, isotropic, channels, imsize, nz)
+#
+# ##Save tif/ show full volume
+# else:
+#     img, raw, netG = test_img(Project_path, image_type, netG(), nz, show = False, lf = 4)
