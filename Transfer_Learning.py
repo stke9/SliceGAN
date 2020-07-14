@@ -26,7 +26,7 @@ dp, gp = [3,2,2,2,2],[2,2,2,2,3]
 ##Create Networks
 netD, netG = Architect(Project_path, Training, dk, ds, df,dp, gk ,gs, gf, gp)
 for active_layers in [5,4,3,2,1]:
-    Project_name = 'transfer_timetest' + str(active_layers) + '_active_layers'  # Creates directory with output images
+    Project_name = 'transfer_cputest' + str(active_layers) + '_active_layers'  # Creates directory with output images
     Project_path = mkdr(Project_name , Project_dir, Training)
 
     data = transfer_trainer(Project_path, image_type, data_type, data_path, netD, netG, isotropic, channels, imsize, nz, trans_pths,active_layers)

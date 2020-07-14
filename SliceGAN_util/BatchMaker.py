@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 import tifffile
-def Batch(img1,img2,img3,type,l,TI):
+def Batch(img1,img2,img3,type,l, sf,TI):
     Testing=TI
 
     if type == 'png' or type == 'jpg':
@@ -77,7 +77,7 @@ def Batch(img1,img2,img3,type,l,TI):
     elif type=='tif':
         datasetxyz=[]
         img = np.array(tifffile.imread(img1))
-        img = img[::4,::4,::4]
+        img = img[::sf,::sf,::sf]
         ## Create a data store and add random samples from the full image
         x_max, y_max, z_max = img.shape[:]
         print(img.shape)
