@@ -11,10 +11,11 @@ def Batch(img1,img2,img3,type,l, sf,TI):
         img = plt.imread(img1)
         if len(img.shape)>2:
             img = img[:,:,0]
-        # img = img[::2,::2]
+        img = img[::sf,::sf]
         x_max, y_max= img.shape[:]
-        data = np.empty([32 * 900, 2, l, l])
         phases = np.unique(img)
+
+        data = np.empty([32 * 900, len(phases), l, l])
         for i in range(32 * 900):
             x = np.random.randint(1, x_max - l-1)
             y = np.random.randint(1, y_max - l-1)
@@ -101,6 +102,7 @@ def Batch(img1,img2,img3,type,l, sf,TI):
                     else:
                         img1[img[x:x + l, y:y + l,lay] == phs] = 1
                     data[i, cnt, :, :] = img1[:,:]
+                    # data[i, (cnt+1)%3, :, :] = img1[:,:]
 
             if Testing:
                 for j in range(2):
@@ -146,21 +148,40 @@ def Batch(img1,img2,img3,type,l, sf,TI):
             datasetxyz.append(dataset)
     return datasetxyz
 
-def check_ori(img,rots,fig,axs):
-    ax_grps = [[(1,1),(1,3)],[(0,1),(2,1)],[(1,0),(1,2)]]
-    slcs = [img[0,:,:], img[:,0,:],img[:,:,0]]
-    print(rots)
-    for i, (a,slc,rot) in enumerate(zip(ax_grps, slcs, rots)):
-        if rot:
-            slc = np.swapaxes(slc,0,1)
-        axs[a[0]].imshow(slc)
-        axs[a[1]].imshow(slc)
-        plt.pause(0.1)
-    chng = input()
-    if chng == '':
-        return rot
-    else:
-        rots[int(chng)] = abs(rots[int(chng)]-1)
-        check_ori(img, rots,fig,axs)
-
+def CBatch(imgs,lbls, type, l, sf, TI):
+    nlabs = len(lbls[0])
+    data = np.empty([32 * 900, 3, l, l])
+    labelset = np.empty([32 * 900, nlabs, 1, 1])
+    p = 0
+    nimgs = len(imgs)
+    print('number of training imgs: ', nimgs, ' number of labels: ', nlabs)
+    for img,lbl in zip(imgs,lbls):
+        img = np.load(img)
+        print(img.shape)
+        if len(img.shape) > 3:
+            img = img[:, :, 0]
+        img = img[::sf, ::sf]
+        x_max, y_max, z_max = img.shape[:]
+        phases = np.unique(img)
+        for i in range((32//nimgs) * 900):
+            for j,lb in enumerate(lbl):
+                labelset[p,j] = lb+1
+            x = np.random.randint(1, x_max - l - 1)
+            y = np.random.randint(1, y_max - l - 1)
+            z = np.random.randint(1,z_max)
+            # create one channel per phase for one hot encoding
+            # for cnt, phs in enumerate(phases):
+            #     img1 = np.zeros([l, l])
+            #     img1[img[x:x + l, y:y + l, z] == phs] = 1
+            #     data[p, cnt, :, :] = img1
+            p+=1
+            if i%1800==0:
+                plt.imshow(data[p-1,0] + 2*data[p-1,1])
+                print(lbl)
+                plt.pause(1)
+                plt.close('all')
+    data = torch.FloatTensor(data)
+    labelset = torch.FloatTensor(labelset)
+    dataset = torch.utils.data.TensorDataset(data,labelset)
+    return [dataset]*3
 
