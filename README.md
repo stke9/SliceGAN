@@ -13,3 +13,7 @@ To add a new preprocessing method e.g for a different training datatype, see pre
 ### Results
 
 ![](images/SliceGAN_results.png)
+
+### Versions
+
+v1 release: DOI: 10.5281/zenodo.4319972
