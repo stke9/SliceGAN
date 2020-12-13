@@ -55,25 +55,22 @@ def calc_gradient_penalty(netD, real_data, fake_data, batch_size, l, device, gp_
     return gradient_penalty
 
 
-def cond_calc_gradient_penalty(netD, real_data, fake_data, batch_size, l, device, gp_lambda, nc, fk_lbls,
-                          real_lbls, nlabels):
+def cond_calc_gradient_penalty(netD, real_data, fake_data, batch_size, l, device, gp_lambda, nc, labs, nlabels):
     alpha = torch.rand(batch_size, 1)
-    lab_alpha = alpha.expand(batch_size, nlabels*l*l).view(batch_size,nlabels,l,l).contiguous().to(device)
+    # lab_alpha = alpha.expand(batch_size, nlabels*l*l).view(batch_size,nlabels,l,l).contiguous().to(device)
     alpha = alpha.expand(batch_size, int(real_data.nelement() / batch_size)).contiguous()
     alpha = alpha.view(batch_size, nc, l, l)
     alpha = alpha.to(device)
 
-    fake_data2 = fake_data.view(batch_size, nc, l, l)
-
-    interpolates = alpha * real_data.detach() + ((1 - alpha) * fake_data2.detach())
+    interpolates = alpha * real_data.detach() + ((1 - alpha) * fake_data.detach())
     interpolates = interpolates.to(device)
     interpolates.requires_grad_(True)
-    lbl_interpolates = lab_alpha * real_lbls + ((1 - lab_alpha) * fk_lbls)
-    lbl_interpolates = lbl_interpolates.to(device)
-    lbl_interpolates.requires_grad_(True)
+    # lbl_interpolates = lab_alpha * real_lbls + ((1 - lab_alpha) * fk_lbls)
+    # lbl_interpolates = lbl_interpolates.to(device)
+    # lbl_interpolates.requires_grad_(True)
     gradient_penalty = 0
-    for input_t in [interpolates, lbl_interpolates]:
-        disc_interpolates = netD(interpolates, lbl_interpolates)
+    for input_t in [interpolates]:#, lbl_interpolates]:
+        disc_interpolates = netD(interpolates, labs)
         gradients = autograd.grad(outputs=disc_interpolates, inputs=input_t,
                                   grad_outputs=torch.ones(disc_interpolates.size()).to(device),
                                   create_graph=True, only_inputs=True)[0]
@@ -99,9 +96,9 @@ def PostProc(img,imtype):
     try:
         img = img.detach().cpu()
     except:
-        print(img)
+        pass
     if imtype == 'colour':
-        return (128*(1+np.swapaxes(img[0], 0, -1))).astype('int')
+        return np.int_(255*(np.swapaxes(img[0], 0, -1)))
     if imtype == 'twophase':
         sqrs = np.zeros(img.shape[2:])
         p1 = np.array(img[0][0])
@@ -117,15 +114,22 @@ def PostProc(img,imtype):
         sqrs[(p2 > p1) & (p2 > p3)] = 1  # spheres, green
         sqrs[(p3 > p2) & (p3 > p1)] = 2  # binder, purple
         return sqrs
+    if imtype == 'grayscale':
+        return 255*img[0][0]
 
 def TestPlotter(sqrs,slcs,imtype,pth):
     sqrs = PostProc(sqrs,imtype)
     fig, axs = plt.subplots(slcs, 3)
     if imtype == 'colour':
         for j in range(slcs):
-            axs[j, 0].imshow(sqrs[j, :, :, :])
-            axs[j, 1].imshow(sqrs[:, j, :, :])
-            axs[j, 2].imshow(sqrs[:, :, j, :])
+            axs[j, 0].imshow(sqrs[j, :, :, :], vmin = 0, vmax = 255)
+            axs[j, 1].imshow(sqrs[:, j, :, :],  vmin = 0, vmax = 255)
+            axs[j, 2].imshow(sqrs[:, :, j, :],  vmin = 0, vmax = 255)
+    elif imtype == 'grayscale':
+        for j in range(slcs):
+            axs[j, 0].imshow(sqrs[j, :, :], cmap = 'gray')
+            axs[j, 1].imshow(sqrs[:, j, :], cmap = 'gray')
+            axs[j, 2].imshow(sqrs[:, :, j], cmap = 'gray')
     else:
         for j in range(slcs):
             axs[j, 0].imshow(sqrs[j, :, :])
@@ -153,6 +157,27 @@ def test_img(pth, imtype, netG, nz = 64, lf = 4, show = False):
     tifffile.imwrite(pth + '.tif', tif)
 
     return tif,raw, netG
+
+def test_img_cgan(pth, label_list, imtype, netG, nz = 64, lf = 4, show = False):
+    netG.load_state_dict(torch.load(pth + '_Gen.pt'))
+    tifs, raws = [], []
+    noise = torch.randn(1, nz, lf, lf, lf)
+    for lbls in label_list:
+        fake_labels = torch.ones((1, len(lbls)*2, 1, 1, 1))
+        for ch, lbl in enumerate(lbls):
+            fake_labels[:,ch] = lbl
+            fake_labels[:, ch+len(lbls)] = 1 - lbl
+            fake_labels = fake_labels.repeat(1, 1, lf,lf,lf)
+            print(fake_labels[0,:,0,0,0])
+            netG.eval()
+            raw = netG(noise, fake_labels)
+            print('Postprocessing')
+            gb = PostProc(raw,imtype)
+            tif = np.int_(gb)
+            tifffile.imwrite(pth + str(lbl)+ '.tif', tif)
+            tifs.append(tif)
+            raws.append(raw)
+    return tifs, raws, netG
 
 def angslcs(img,l, bs,dim):
     angslc = torch.zeros(l*bs,2,l,l).cuda()
