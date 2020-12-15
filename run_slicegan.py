@@ -5,9 +5,9 @@
 from slicegan import model, networks, util
 
 # Define project name
-Project_name = 'NMC_exemplar_64_64_2'
+Project_name = 'Project_name'
 # Dreate/specify project folder
-Project_dir = 'Trained_Generators/NMC/'
+Project_dir = 'Project_dir/'
 # Run with False to show an image during or after training
 Training = True
 Project_path = util.mkdr(Project_name, Project_dir, Training)
