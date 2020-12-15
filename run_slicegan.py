@@ -3,12 +3,16 @@
 '''Use this file to define your settings for a training run, or to generate a synthetic image using a trained generator. '''
 
 from slicegan import model, networks, util
-
+import argparse
 # Define project name
 Project_name = 'Project_name'
 # Dreate/specify project folder
 Project_dir = 'Project_dir/'
 # Run with False to show an image during or after training
+parser = argparse.ArgumentParser()
+parser.add_argument('training', type=int)
+args = parser.parse_args()
+training = args.training
 Training = True
 Project_path = util.mkdr(Project_name, Project_dir, Training)
 
