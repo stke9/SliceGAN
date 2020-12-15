@@ -1,6 +1,8 @@
 # SliceGAN 
 
-To use SliceGAN to train a new generator or test pretrained generators, open run_slicegan and edit information as requested. SliceGAN requires a single 2D training image of an isotropic microstructure, or three 2D images taken at perpendicular angles of an anisotropic microstructure. Images can be colour, grayscale or n-phase.
+To use SliceGAN open run_slicegan and edit information as requested. SliceGAN requires a single 2D training image of an isotropic microstructure, or three 2D images taken at perpendicular angles of an anisotropic microstructure. Images can be colour, grayscale or n-phase.
+
+Use 'python run_slicegan 1' to train a new generator or 'python run_slicegan 0' to generate and save an example .tif file
 
 ### Development
 
