@@ -80,7 +80,7 @@ def cond_calc_gradient_penalty(netD, real_data, fake_data, batch_size, l, device
     return gradient_penalty
 
 
-def calc_ETA(steps, time, start, i, epoch, num_epochs):
+def calc_eta(steps, time, start, i, epoch, num_epochs):
     elap = time - start
     progress = epoch * steps + i + 1
     rem = num_epochs * steps - progress
@@ -92,7 +92,7 @@ def calc_ETA(steps, time, start, i, epoch, num_epochs):
              hrs, mins))
 
 ## Plotting Utils
-def PostProc(img,imtype):
+def post_proc(img,imtype):
     try:
         img = img.detach().cpu()
     except:
@@ -117,8 +117,8 @@ def PostProc(img,imtype):
     if imtype == 'grayscale':
         return 255*img[0][0]
 
-def TestPlotter(sqrs,slcs,imtype,pth):
-    sqrs = PostProc(sqrs,imtype)
+def test_plotter(sqrs,slcs,imtype,pth):
+    sqrs = post_proc(sqrs,imtype)
     fig, axs = plt.subplots(slcs, 3)
     if imtype == 'colour':
         for j in range(slcs):
@@ -138,7 +138,7 @@ def TestPlotter(sqrs,slcs,imtype,pth):
     plt.savefig(pth + '_slices.png')
     plt.close()
 
-def GraphPlot(data,labels,pth,name):
+def graph_plot(data,labels,pth,name):
     for datum,lbl in zip(data,labels):
         plt.plot(datum, label = lbl)
     plt.legend()
@@ -152,75 +152,9 @@ def test_img(pth, imtype, netG, nz = 64, lf = 4, show = False):
     noise = torch.randn(1, nz, lf, lf, lf)
     raw = netG(noise)
     print('Postprocessing')
-    gb = PostProc(raw,imtype)
+    gb = post_proc(raw,imtype)
     tif = np.int_(gb)
     tifffile.imwrite(pth + '.tif', tif)
 
     return tif,raw, netG
 
-def test_img_cgan(pth, label_list, imtype, netG, nz = 64, lf = 4, show = False):
-    netG.load_state_dict(torch.load(pth + '_Gen.pt'))
-    tifs, raws = [], []
-    noise = torch.randn(1, nz, lf, lf, lf)
-    for lbls in label_list:
-        fake_labels = torch.ones((1, len(lbls)*2, 1, 1, 1))
-        for ch, lbl in enumerate(lbls):
-            fake_labels[:,ch] = lbl
-            fake_labels[:, ch+len(lbls)] = 1 - lbl
-            fake_labels = fake_labels.repeat(1, 1, lf,lf,lf)
-            print(fake_labels[0,:,0,0,0])
-            netG.eval()
-            raw = netG(noise, fake_labels)
-            print('Postprocessing')
-            gb = PostProc(raw,imtype)
-            tif = np.int_(gb)
-            tifffile.imwrite(pth + str(lbl)+ '.tif', tif)
-            tifs.append(tif)
-            raws.append(raw)
-    return tifs, raws, netG
-
-def angslcs(img,l, bs,dim):
-    angslc = torch.zeros(l*bs,2,l,l).cuda()
-    if dim:
-        img = torch.flip(img, dims = [2])
-    pos = 0
-
-    for off in range(-int(l/4),int(l/4)):
-        slc = torch.diagonal(img, dim1=2, dim2=3, offset=off)
-        up = nn.Upsample(size=(l, int(slc.shape[-1]* 2**0.5)), mode='bilinear', align_corners=True)
-        slc = up(slc)
-        slc1 = slc[:, :, :, -l:]
-        slc2 = slc[:, :, :, :l]
-
-        slc1 = slc1.permute(0, 1, 3, 2)
-        slc2 = slc2.permute(0, 1, 3, 2)
-        angslc[pos*bs:(pos+1)*bs] = slc1
-        pos+=1
-        angslc[pos * bs:(pos + 1) * bs] = slc2
-        pos+=1
-    return angslc
-
-def filt_var(netG, Proj,it,epoch):
-    MSEs = []
-    for lay in range(5):
-        weights = netG.convs._modules[str(lay)].weight
-        ch_in, ch_out = weights.shape[:2]
-        MSE = torch.zeros([ch_out, ch_out, ch_in])
-        for i in range(ch_out):
-            for j in range(ch_out):
-                MSE[i,j, :] =  torch.mean((weights[:,i].detach()-weights[:,j].detach())**2, dim = [1,2,3])
-        MSE[MSE==0]=1
-        MSEs.append(MSE.cpu().numpy())
-
-    fig, axs = plt.subplots(1,5,sharey = True)
-    for lay,(MSE,ax)  in enumerate(zip(MSEs,axs)):
-        vals = MSE[MSE<1]
-        l = vals.shape
-        ax.title.set_text('Weights' + str(lay))
-        ax.hist(vals, weights = np.ones(l)/l, bins = 30)
-        ax.ticklabel_format(axis = 'x', style = 'sci', scilimits=(0,0))
-    fig.text(0.5, 0.04, 'MSE between a pair of filters', ha='center')
-    fig.text(0.04, 0.5, 'Fraction of all filter pair combinations with given MSE', va='center', rotation='vertical')
-    plt.savefig(Proj + '/' + Proj + '_filtvar_ep' + str(epoch) + '_iter' + str(it) + '.png',bbox_inches='tight')
-    plt.close()
-    return

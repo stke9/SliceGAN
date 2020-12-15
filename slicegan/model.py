@@ -108,7 +108,6 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf):
             if i % int(critic_iters) == 0:
                 netG.zero_grad()
                 errG = 0
-                st = time.time()
                 noise = torch.randn(batch_size, nz, lz,lz,lz, device=device)
                 fake = netG(noise)
                 print('gen', time.time()-st)
@@ -126,7 +125,6 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf):
                     # Calculate gradients for G
                 errG.backward()
                 optG.step()
-                print('back', time.time() - st)
 
             # Output training stats & show imgs
             if i % 25 == 0:
@@ -137,10 +135,10 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf):
                 ###Print progress
                 ## calc ETA
                 steps = len(dataloaderx)
-                util.calc_ETA(steps, time.time(), start, i, epoch, num_epochs)
+                util.calc_eta(steps, time.time(), start, i, epoch, num_epochs)
                 ###save example slices
-                util.TestPlotter(img, 5, imtype, pth)
+                util.test_plotter(img, 5, imtype, pth)
                 # plotting graphs
-                util.GraphPlot([disc_real_log, disc_fake_log], ['real', 'perp'], pth, 'LossGraph')
-                util.GraphPlot([Wass_log], ['Wass Distance'], pth, 'WassGraph')
-                util.GraphPlot([gp_log], ['Gradient Penalty'], pth, 'GpGraph')
+                util.graph_plot([disc_real_log, disc_fake_log], ['real', 'perp'], pth, 'LossGraph')
+                util.graph_plot([Wass_log], ['Wass Distance'], pth, 'WassGraph')
+                util.graph_plot([gp_log], ['Gradient Penalty'], pth, 'GpGraph')
