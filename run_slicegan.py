@@ -8,9 +8,9 @@ to generate a synthetic image using a trained generator.
 from slicegan import model, networks, util
 import argparse
 # Define project name
-Project_name = 'NMC_nonuni'
+Project_name = ''
 # Specify project folder.
-Project_dir = 'Trained_Generators/NMC'
+Project_dir = ''
 # Run with False to show an image during or after training
 parser = argparse.ArgumentParser()
 parser.add_argument('training', type=int)
