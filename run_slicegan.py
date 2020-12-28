@@ -1,25 +1,29 @@
 ### Welcome to SliceGAN ###
 ####### Steve Kench #######
-'''Use this file to define your settings for a training run, or to generate a synthetic image using a trained generator. '''
+'''
+Use this file to define your settings for a training run, or
+to generate a synthetic image using a trained generator.
+'''
 
 from slicegan import model, networks, util
 import argparse
 # Define project name
-Project_name = 'Project_name'
-# Dreate/specify project folder
-Project_dir = 'Project_dir/'
+Project_name = 'NMC_nonuni'
+# Specify project folder.
+Project_dir = 'Trained_Generators/NMC'
 # Run with False to show an image during or after training
 parser = argparse.ArgumentParser()
 parser.add_argument('training', type=int)
 args = parser.parse_args()
-training = args.training
-Training = True
+Training = args.training
 Project_path = util.mkdr(Project_name, Project_dir, Training)
 
 ## Data Processing
-# Define image  type (colour, grayscale, three-phase or two-phase. n-phase materials must be segmented)
+# Define image  type (colour, grayscale, three-phase or two-phase.
+# n-phase materials must be segmented)
 image_type = 'threephase'
-# define data type (for colour/grayscale images, must be 'colour' / 'greyscale. nphase can be, 'tif', 'png', 'jpg','array')
+# define data type (for colour/grayscale images, must be 'colour' / '
+# greyscale. nphase can be, 'tif', 'png', 'jpg','array')
 data_type = 'tif'
 # Path to your data. One string for isotrpic, 3 for anisotropic
 data_path = ['Examples/NMC.tif']
@@ -30,7 +34,7 @@ img_size, img_channels, scale_factor = 64, 3,  1
 # z vector depth
 z_channels = 16
 # Layers in G and D
-lays = 5
+lays = 6
 # kernals for each layer
 dk, gk = [4]*lays, [4]*lays
 # strides
@@ -47,4 +51,4 @@ netD, netG = networks.slicegan_nets(Project_path, Training, image_type, dk, ds, 
 if Training:
     model.train(Project_path, image_type, data_type, data_path, netD, netG, img_channels, img_size, z_channels, scale_factor)
 else:
-    img, raw, netG = util.test_img(Project_path, image_type, netG(), z_channels, show=False, lf=8)
+    img, raw, netG = util.test_img(Project_path, image_type, netG(), z_channels, show=False, lf=4)

@@ -3,7 +3,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 import pickle
 def slicegan_nets(pth, Training, imtype, dk,ds,df,dp,gk,gs,gf,gp):
-
+    """
+    Define a generator and Discriminator
+    :param Training: If training, we save params, if not, we load params from previous.
+    This keeps the parameters consistent for older models
+    :return:
+    """
     #save params
     params = [dk, ds, df, dp, gk, gs, gf, gp]
     # if fresh training, save params
@@ -52,5 +57,4 @@ def slicegan_nets(pth, Training, imtype, dk,ds,df,dp,gk,gs,gf,gp):
             return x
 
     return Discriminator, Generator
-
 

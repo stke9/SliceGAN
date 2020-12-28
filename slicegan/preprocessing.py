@@ -2,9 +2,16 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 import tifffile
-def batch(data,type,l, sf,TI):
-    Testing=TI
-
+def batch(data,type,l, sf):
+    """
+    Generate a batch of images randomly sampled from a training microstructure
+    :param data: data path
+    :param type: data type
+    :param l: image size
+    :param sf: scale factor
+    :return:
+    """
+    Testing = True
     if type == 'png' or type == 'jpg':
         datasetxyz = []
         for img in data:
@@ -73,6 +80,7 @@ def batch(data,type,l, sf,TI):
             data = torch.FloatTensor(data)
             dataset = torch.utils.data.TensorDataset(data)
             datasetxyz.append(dataset)
+
     elif type=='colour':
         ## Create a data store and add random samples from the full image
         datasetxyz = []

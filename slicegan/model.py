@@ -7,7 +7,20 @@ import time
 import matplotlib
 
 def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf):
-
+    """
+    train the generator
+    :param pth: path to save all files, imgs and data
+    :param imtype: image type e.g nphase, colour or gray
+    :param datatype: training data format e.g. tif, jpg ect
+    :param real_data: path to training data
+    :param Disc:
+    :param Gen:
+    :param nc: channels
+    :param l: image size
+    :param nz: latent vector size
+    :param sf: scale factor for training data
+    :return:
+    """
     if len(real_data) == 1:
         real_data *= 3
         isotropic = True
@@ -15,7 +28,7 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf):
         isotropic = False
 
     print('Loading Dataset...')
-    dataset_xyz = preprocessing.batch(real_data, datatype, l, sf,TI=True)
+    dataset_xyz = preprocessing.batch(real_data, datatype, l, sf)
 
     ## Constants for NNs
     matplotlib.use('Agg')
@@ -110,8 +123,6 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf):
                 errG = 0
                 noise = torch.randn(batch_size, nz, lz,lz,lz, device=device)
                 fake = netG(noise)
-                print('gen', time.time()-st)
-                st = time.time()
 
                 for dim, (netD, d1, d2, d3) in enumerate(
                         zip(netDs, [2, 3, 4], [3, 2, 2], [4, 4, 3])):
@@ -142,3 +153,4 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf):
                 util.graph_plot([disc_real_log, disc_fake_log], ['real', 'perp'], pth, 'LossGraph')
                 util.graph_plot([Wass_log], ['Wass Distance'], pth, 'WassGraph')
                 util.graph_plot([gp_log], ['Gradient Penalty'], pth, 'GpGraph')
+
