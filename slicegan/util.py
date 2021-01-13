@@ -117,20 +117,20 @@ def post_proc(img,imtype):
         pass
     # for n phase materials, seperate out the channels and take the max
     if imtype == 'twophase':
-        img = np.zeros(img.shape[2:])
+        img_pp = np.zeros(img.shape[2:])
         p1 = np.array(img[0][0])
         p2 = np.array(img[0][1])
-        img[(p1 < p2)] = 1  # background, yellow
+        img_pp[(p1 < p2)] = 1  # background, yellow
         return img
     if imtype == 'threephase':
-        img = np.zeros(img.shape[2:])
+        img_pp = np.zeros(img.shape[2:])
         p1 = np.array(img[0][0])
         p2 = np.array(img[0][1])
         p3 = np.array(img[0][2])
-        img[(p1 > p2) & (p1 > p3)] = 0  # background, yellow
-        img[(p2 > p1) & (p2 > p3)] = 1  # spheres, green
-        img[(p3 > p2) & (p3 > p1)] = 2  # binder, purple
-        return img
+        img_pp[(p1 > p2) & (p1 > p3)] = 0  # background, yellow
+        img_pp[(p2 > p1) & (p2 > p3)] = 1  # spheres, green
+        img_pp[(p3 > p2) & (p3 > p1)] = 2  # binder, purple
+        return img_pp
     # colour and grayscale don't require post proc, just a shift
     if imtype == 'colour':
         return np.int_(255 * (np.swapaxes(img[0], 0, -1)))
