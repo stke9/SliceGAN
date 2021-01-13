@@ -18,4 +18,7 @@ To add a new preprocessing method e.g for a different training datatype, see pre
 
 ### Versions
 
-v1 release: DOI: 10.5281/zenodo.4319972
+v1.1 release: [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4399114.svg)](https://doi.org/10.5281/zenodo.4399114)
+
+v1.0 release: [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4319988.svg)](https://doi.org/10.5281/zenodo.4319988)
+
