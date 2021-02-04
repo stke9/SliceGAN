@@ -182,7 +182,7 @@ def graph_plot(data,labels,pth,name):
     plt.close()
 
 
-def test_img(pth, imtype, netG, nz = 64, lf = 4):
+def test_img(pth, imtype, netG, nz = 64, lf = 4, periodic=False):
     """
     saves a test volume for a trained or in progress of training generator
     :param pth: where to save image and also where to find the generator
@@ -191,14 +191,29 @@ def test_img(pth, imtype, netG, nz = 64, lf = 4):
     :param nz: latent z dimension
     :param lf: length factor
     :param show:
+    :param periodic: list of periodicity in axis 1 through n
     :return:
     """
     netG.load_state_dict(torch.load(pth + '_Gen.pt'))
     netG.eval()
     noise = torch.randn(1, nz, lf, lf, lf)
+    if periodic:
+        if periodic[0]:
+            noise[:, :, :2] = noise[:, :, -2:]
+        if periodic[1]:
+            noise[:, :, :, :2] = noise[:, :, :, -2:]
+        if periodic[2]:
+            noise[:, :, :, :, :2] = noise[:, :, :, :, -2:]
     raw = netG(noise)
     print('Postprocessing')
     gb = post_proc(raw,imtype)
+    if periodic:
+        if periodic[0]:
+            gb = gb[:-1]
+        if periodic[1]:
+            gb = gb[:,:-1]
+        if periodic[2]:
+            gb = gb[:,:,:-1]
     tif = np.int_(gb)
     tifffile.imwrite(pth + '.tif', tif)
 

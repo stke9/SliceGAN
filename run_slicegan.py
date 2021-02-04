@@ -8,9 +8,9 @@ to generate a synthetic image using a trained generator.
 from slicegan import model, networks, util
 import argparse
 # Define project name
-Project_name = 'NMC_example'
+Project_name = 'NMC_exemplar_final'
 # Specify project folder.
-Project_dir = 'Trained_Generators/NMC/'
+Project_dir = 'Trained_Generators/NMC'
 # Run with False to show an image during or after training
 parser = argparse.ArgumentParser()
 parser.add_argument('training', type=int)
@@ -40,7 +40,7 @@ dk, gk = [4]*lays, [4]*lays
 # strides
 ds, gs = [2]*lays, [2]*lays
 # no. filters
-df, gf = [img_channels,64,128,256,512,1], [z_channels,256,256,128,64,img_channels]
+df, gf = [img_channels,64,128,256,512,1], [z_channels,512,256,128,64,img_channels]
 # paddings
 dp, gp = [1,1,1,1,0],[2,2,2,2,3]
 
@@ -51,4 +51,4 @@ netD, netG = networks.slicegan_nets(Project_path, Training, image_type, dk, ds, 
 if Training:
     model.train(Project_path, image_type, data_type, data_path, netD, netG, img_channels, img_size, z_channels, scale_factor)
 else:
-    img, raw, netG = util.test_img(Project_path, image_type, netG(), z_channels, lf=4)
+    img, raw, netG = util.test_img(Project_path, image_type, netG(), z_channels, lf=6, periodic=[0, 1, 1])
