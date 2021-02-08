@@ -1,0 +1,12 @@
+cycler==0.10.0
+kiwisolver==1.3.1
+matplotlib==3.3.4
+numpy==1.20.0
+Pillow==8.1.0
+pyparsing==2.4.7
+python-dateutil==2.8.1
+PyYAML==5.4.1
+six==1.15.0
+tifffile==2021.2.1
+torch==1.7.1
+typing-extensions==3.7.4.3

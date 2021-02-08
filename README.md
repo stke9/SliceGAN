@@ -16,6 +16,20 @@ To add a new preprocessing method e.g for a different training datatype, see pre
 
 ![](images/SliceGAN_results.png)
 
+### Quickstart Instructions
+
+#### Python
+Create a virtual environment
+
+```
+python -m venv venv
+source venv/bin/activate
+```
+Install prerequisite packages
+```
+pip install -r requirements.txt
+```
+
 ### Versions
 
 v1.1 release: [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4399114.svg)](https://doi.org/10.5281/zenodo.4399114)
