@@ -8,7 +8,8 @@ import tifffile
 import wandb
 from dotenv import load_dotenv
 import subprocess
-from pathlib import Path
+import shutil
+
 
 ## Training Utils
 
@@ -253,3 +254,7 @@ def wandb_init():
     wandb.config.no_cuda = wandb_config['no_cuda']
     wandb.config.seed = wandb_config['seed']
     wandb.config.log_interval = wandb_config['log_interval']
+
+def wandb_save_models(pth, fn):
+    shutil.copy(pth+fn, os.path.join(wandb.run.dir, fn))
+    wandb.save(fn)

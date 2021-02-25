@@ -155,6 +155,10 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, wandb_flag
             if i % 25 == 0:
                 torch.save(netG.state_dict(), pth + '_Gen.pt')
                 torch.save(netD.state_dict(), pth + '_Disc.pt')
+                if wandb_flag:
+                    util.wandb_save_models(pth, '_Gen.pt')
+                    util.wandb_save_models(pth, '_Disc.pt')
+                    
                 noise = torch.randn(1, nz,lz,lz,lz, device=device)
                 img = netG(noise)
                 ###Print progress
