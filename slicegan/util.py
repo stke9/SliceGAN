@@ -5,7 +5,12 @@ from torch import autograd
 import numpy as np
 import matplotlib.pyplot as plt
 import tifffile
-import sys
+import wandb
+from dotenv import load_dotenv
+import subprocess
+import shutil
+
+
 ## Training Utils
 
 def mkdr(proj,proj_dir,Training):
@@ -221,7 +226,35 @@ def test_img(pth, imtype, netG, nz = 64, lf = 4, periodic=False):
 
 
 
+def wandb_init():
 
+    load_dotenv(os.path.join(os.path.dirname(__file__),'.env'))
+    API_KEY = os.getenv('WANDB_API_KEY')
+    print("Logging into W and B using API key {}".format(API_KEY))
+    process = subprocess.run(["wandb", "login", API_KEY], capture_output=True)
+    print("stderr:", process.stderr)
 
+    ENTITY = os.getenv('WANDB_ENTITY')
+    PROJECT = os.getenv('WANDB_PROJECT')
+    wandb.init(entity=ENTITY, project=PROJECT)
 
+        
+    wandb_config = {
+    'active': True,
+    'api_key': API_KEY,
+    'entity': ENTITY,
+    'project': PROJECT,
+    'watch_called': False,
+    'no_cuda': False,
+    'seed': 42,
+    'log_interval': 100,
 
+}
+    wandb.watch_called = wandb_config['watch_called']
+    wandb.config.no_cuda = wandb_config['no_cuda']
+    wandb.config.seed = wandb_config['seed']
+    wandb.config.log_interval = wandb_config['log_interval']
+
+def wandb_save_models(pth, fn):
+    shutil.copy(pth+fn, os.path.join(wandb.run.dir, fn))
+    wandb.save(fn)

@@ -5,8 +5,9 @@ import torch.backends.cudnn as cudnn
 import torch.optim as optim
 import time
 import matplotlib
+import wandb
 
-def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf):
+def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, wandb_flag=False):
     """
     train the generator
     :param pth: path to save all files, imgs and data
@@ -80,6 +81,11 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf):
     gp_log = []
     Wass_log = []
 
+    if wandb_flag:
+        util.wandb_init()
+        wandb.watch(netD)
+        wandb.watch(netG)
+
     print("Starting Training Loop...")
     # For each epoch
     start = time.time()
@@ -112,11 +118,19 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf):
                 disc_cost = out_fake - out_real + gradient_penalty
                 disc_cost.backward()
                 optimizer.step()
+
             #logs for plotting
             disc_real_log.append(out_real.item())
             disc_fake_log.append(out_fake.item())
             Wass_log.append(out_real.item() - out_fake.item())
             gp_log.append(gradient_penalty.item())
+
+            if wandb_flag:
+                    wandb.log({'Gradient penalty': gradient_penalty.item()})
+                    wandb.log({'Wass': out_real.item() - out_fake.item()})
+                    wandb.log({'Discriminator real': out_real.item()})
+                    wandb.log({'Discriminator fake': out_fake.item()})
+
             ### Generator Training
             if i % int(critic_iters) == 0:
                 netG.zero_grad()
@@ -141,6 +155,10 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf):
             if i % 25 == 0:
                 torch.save(netG.state_dict(), pth + '_Gen.pt')
                 torch.save(netD.state_dict(), pth + '_Disc.pt')
+                if wandb_flag:
+                    util.wandb_save_models(pth, '_Gen.pt')
+                    util.wandb_save_models(pth, '_Disc.pt')
+                    
                 noise = torch.randn(1, nz,lz,lz,lz, device=device)
                 img = netG(noise)
                 ###Print progress
