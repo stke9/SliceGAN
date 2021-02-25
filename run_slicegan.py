@@ -47,8 +47,11 @@ dp, gp = [1,1,1,1,0],[2,2,2,2,3]
 ## Create Networks
 netD, netG = networks.slicegan_nets(Project_path, Training, image_type, dk, ds, df,dp, gk ,gs, gf, gp)
 
+# Track metrics and models in WandB
+wandb_flag = True
+
 # Train
 if Training:
-    model.train(Project_path, image_type, data_type, data_path, netD, netG, img_channels, img_size, z_channels, scale_factor)
+    model.train(Project_path, image_type, data_type, data_path, netD, netG, img_channels, img_size, z_channels, scale_factor, wandb_flag=wandb_flag)
 else:
     img, raw, netG = util.test_img(Project_path, image_type, netG(), z_channels, lf=6, periodic=[0, 1, 1])
