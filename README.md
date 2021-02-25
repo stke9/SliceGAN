@@ -16,6 +16,18 @@ To add a new preprocessing method e.g for a different training datatype, see pre
 
 ![](images/SliceGAN_results.png)
 
+### Weights and Biases configuration
+
+If you would like to use WandB to track your training, you must create a `.env` in the [slicegan](slicegan) directory containing `WANDB_ENTITY`, `WANDB_PROJECT` and `WANDB_API_KEY`. For example
+
+```
+WANDB_ENTITY = entity-name
+WANDB_PROJECT = project-name
+WANDB_API_KEY = fake9e20-b6a2-4api-a8be-e23103c77key
+```
+
+You can change other WandB configuration settings in the `util.wandb_init` function.
+
 ### Versions
 
 v1.1 release: [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4399114.svg)](https://doi.org/10.5281/zenodo.4399114)
