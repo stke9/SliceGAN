@@ -139,18 +139,20 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf):
 
             # Output training stats & show imgs
             if i % 25 == 0:
-                torch.save(netG.state_dict(), pth + '_Gen.pt')
-                torch.save(netD.state_dict(), pth + '_Disc.pt')
-                noise = torch.randn(1, nz,lz,lz,lz, device=device)
-                img = netG(noise)
-                ###Print progress
-                ## calc ETA
-                steps = len(dataloaderx)
-                util.calc_eta(steps, time.time(), start, i, epoch, num_epochs)
-                ###save example slices
-                util.test_plotter(img, 5, imtype, pth)
-                # plotting graphs
-                util.graph_plot([disc_real_log, disc_fake_log], ['real', 'perp'], pth, 'LossGraph')
-                util.graph_plot([Wass_log], ['Wass Distance'], pth, 'WassGraph')
-                util.graph_plot([gp_log], ['Gradient Penalty'], pth, 'GpGraph')
-
+                netG.eval()
+                with torch.no_grad():
+                    torch.save(netG.state_dict(), pth + '_Gen.pt')
+                    torch.save(netD.state_dict(), pth + '_Disc.pt')
+                    noise = torch.randn(1, nz,lz,lz,lz, device=device)
+                    img = netG(noise)
+                    ###Print progress
+                    ## calc ETA
+                    steps = len(dataloaderx)
+                    util.calc_eta(steps, time.time(), start, i, epoch, num_epochs)
+                    ###save example slices
+                    util.test_plotter(img, 5, imtype, pth)
+                    # plotting graphs
+                    util.graph_plot([disc_real_log, disc_fake_log], ['real', 'perp'], pth, 'LossGraph')
+                    util.graph_plot([Wass_log], ['Wass Distance'], pth, 'WassGraph')
+                    util.graph_plot([gp_log], ['Gradient Penalty'], pth, 'GpGraph')
+                netG.train()
