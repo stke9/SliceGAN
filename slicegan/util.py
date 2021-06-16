@@ -121,7 +121,7 @@ def post_proc(img,imtype):
         p1 = np.array(img[0][0])
         p2 = np.array(img[0][1])
         img_pp[(p1 < p2)] = 1  # background, yellow
-        return img
+        return img_pp
     if imtype == 'threephase':
         img_pp = np.zeros(img.shape[2:])
         p1 = np.array(img[0][0])
