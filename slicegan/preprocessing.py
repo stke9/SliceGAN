@@ -33,7 +33,10 @@ def batch(data,type,l, sf):
 
             if Testing:
                 for j in range(7):
-                    plt.imshow(data[j, 0, :, :]+2*data[j, 1, :, :])
+                    plot_data = np.zeros((l,l))
+                    for i in range(phases-1):
+                        plot_data += i/phases*data[j, i, :, :]
+                    plt.imshow(plot_data)
                     plt.pause(0.3)
                     plt.show()
                     plt.clf()
