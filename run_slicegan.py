@@ -36,21 +36,63 @@ z_channels = 16
 # Layers in G and D
 lays = 6
 # kernals for each layer
-dk, gk = [4]*lays, [4]*lays
-# strides
-ds, gs = [2]*lays, [2]*lays
-# no. filters
-df, gf = [img_channels,64,128,256,512,1], [z_channels,512,256,128,64,img_channels]
-# paddings
-dp, gp = [1,1,1,1,0],[2,2,2,2,3]
+# dk, gk = [4]*lays, [4]*lays
+# # strides
+# ds, gs = [2]*lays, [2]*lays
+# # no. filters
+# df, gf = [img_channels,64,128,256,512,1], [z_channels,512,256,128,64,img_channels]
+# # paddings
+# dp, gp = [1,1,1,1,0],[2,2,2,2,3]
+
+net_params = {
+
+    "pth": util.mkdr(Project_name, Project_dir, Training),
+    "Training": Training,
+    "imtype": 'threephase',
+
+    "dk" : [4]*lays,
+    "gk" : [4]*lays,
+
+    "ds": [2]*lays,
+    "gs": [2]*lays,
+
+    "df": [img_channels,64,128,256,512,1],
+    "gf": [z_channels,512,256,128,64,img_channels],
+
+    "dp": [1,1,1,1,0],
+    "gp": [2,2,2,2,3],
+
+    }
 
 ## Create Networks
-netD, netG = networks.slicegan_nets(Project_path, Training, image_type, dk, ds, df,dp, gk ,gs, gf, gp)
+netD, netG = networks.slicegan_nets(**net_params)
 
-lz_calced = model.calc_lz(img_size, gk, gs, gp)
+lz_calced = model.calc_lz(img_size, net_params["gk"], net_params["gs"], net_params["gs"])
 
 # Train
 if Training:
-    model.train(Project_path, image_type, data_type, data_path, netD, netG, img_channels, img_size, z_channels, scale_factor, lz_calced)
+    train_params = {
+        "pth": Project_path,
+        "imtype": image_type,
+        "datatype": data_type,
+        "real_data": data_path,
+        "Disc": netD,
+        "Gen": netG,
+        "nc": img_channels,
+        "l": img_size,
+        "nz": z_channels,
+        "sf": scale_factor,
+        "lz": lz_calced
+    }
+
+    model.train(**train_params)
 else:
-    img, raw, netG = util.test_img(Project_path, image_type, netG(), z_channels, lf=6, periodic=[0, 1, 1])
+    test_params = {
+        "pth": Project_path,
+        "imtype": image_type,
+        "Gen": netG(),
+        "nz": z_channels,
+        "lf": 4,
+        "periodic": False
+    }
+    img, raw, netG = util.test_img(**test_params)
