@@ -6,7 +6,8 @@ import torch.optim as optim
 import time
 import matplotlib
 
-def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf):
+
+def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz):
     """
     train the generator
     :param pth: path to save all files, imgs and data
@@ -42,17 +43,18 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf):
     
     lrg = 0.0001
     lrd = 0.0001
+    #change values of beta1 between 0.1-0.9, beta2 0.9-0.99 and calc evals?
     beta1 = 0
     beta2 = 0.9
     Lambda = 10
     critic_iters = 5
     cudnn.benchmark = True
     workers = 0
-    lz = 4
-    # TODO define lz(k,s,p)
+    # lz = 4
+    # The value of lz is now calculated and passed as a computed parameter
 
     ##Dataloaders for each orientation
-    device = torch.device("cuda:0" if(torch.cuda.is_available() and ngpu > 0) else "cpu")
+    device = torch.device("cuda:0" if (torch.cuda.is_available() and ngpu > 0) else "cpu")
     print(device, " will be used.\n")
 
     # D trained using different data for x, y and z directions
@@ -83,6 +85,8 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf):
     gp_log = []
     Wass_log = []
 
+    # gk, gs, gp = netG.params[4,5,7]
+
     print("Starting Training Loop...")
     # For each epoch
     start = time.time()
@@ -93,13 +97,7 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf):
             ### Initialise
             ### Discriminator
             ## Generate fake image batch with G
-
-            # ( B, nz, lz, lz, lz) -> G1 -> (B, 512, l2, l2, l2)
-            # ( B, 512, l2, l2, l2) -> G1 -> (B, 256, l3, l3, l3)
-            # -> ... -> (B, nphase, l, l, l)
-            #  -> ( B, nc, l, l, l)
-
-            noise = torch.randn(D_batch_size, nz, lz,lz,lz, device=device)
+            noise = torch.randn(D_batch_size, nz, lz, lz, lz, device=device)
             fake_data = netG(noise).detach()
             
             # for each dim (d1, d2 and d3 are used as permutations to make 3D volume into a batch of 2D images)
@@ -121,12 +119,12 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf):
                 fake_data_perm = fake_data.permute(0, d1, 1, d2, d3).reshape(l * D_batch_size, nc, l, l)
                 out_fake = netD(fake_data_perm).mean()
                 gradient_penalty = util.calc_gradient_penalty(netD, real_data, fake_data_perm[:batch_size],
-                                                                      batch_size, l,
-                                                                      device, Lambda, nc)
+                                                              batch_size, l,
+                                                              device, Lambda, nc)
                 disc_cost = out_fake - out_real + gradient_penalty
                 disc_cost.backward()
                 optimizer.step()
-            #logs for plotting
+            # logs for plotting
             disc_real_log.append(out_real.item())
             disc_fake_log.append(out_fake.item())
             Wass_log.append(out_real.item() - out_fake.item())
@@ -135,13 +133,13 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf):
             if i % int(critic_iters) == 0:
                 netG.zero_grad()
                 errG = 0
-                noise = torch.randn(batch_size, nz, lz,lz,lz, device=device)
+                noise = torch.randn(batch_size, nz, lz, lz, lz, device=device)
                 fake = netG(noise)
 
                 for dim, (netD, d1, d2, d3) in enumerate(
                         zip(netDs, [2, 3, 4], [3, 2, 2], [4, 4, 3])):
                     if isotropic:
-                        #only need one D
+                        # only need one D
                         netD = netDs[0]
                     # permute and reshape to feed to disc
                     fake_data_perm = fake.permute(0, d1, 1, d2, d3).reshape(l * batch_size, nc, l, l)
@@ -158,7 +156,7 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf):
                 with torch.no_grad():
                     torch.save(netG.state_dict(), pth + '_Gen.pt')
                     torch.save(netD.state_dict(), pth + '_Disc.pt')
-                    noise = torch.randn(1, nz,lz,lz,lz, device=device)
+                    noise = torch.randn(1, nz, lz, lz, lz, device=device)
                     img = netG(noise)
                     ###Print progress
                     ## calc ETA
@@ -173,3 +171,37 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf):
                 
                 # Put model into training mode
                 netG.train()
+
+
+def check_conv_vals(k, s, p):
+    if s < k and k % s == 0 and p >= k - s:
+        return 1
+    else:
+        return 0
+
+
+def calc_lz(im_size, gk, gs, gp):
+    # im_size-> original image size
+    # gk, gs, gp-> generator kernel size, stride, and padding
+
+    gk, gs, gp = gk[::-1], gs[::-1], gp[::-1] # because, we want to go in reverse to calculate lz from image size
+
+    for lay, (k, s, p) in enumerate(zip(gk, gs, gp)):
+
+        ch = check_conv_vals(k, s, p)
+        if ch == 0:
+            print("Values not compatible for uniform information density in the generator samples.")
+            break
+
+        if lay == 0:
+            next_l = im_size
+
+        # \/ equation to calculate size in next layer given transpose convolution (reverse this to find lz)
+        # next_l = k + ((l - 1) * s) - 2 * p
+        # next_l - k + 2 * p = (l - 1) * s
+        # l = ((next_l - k + 2 * p) / s) + 1
+
+        next_l = ((next_l - k + 2 * p)/s) + 1
+        next_l = int(next_l)
+
+    return next_l
