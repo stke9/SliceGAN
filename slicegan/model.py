@@ -1,3 +1,4 @@
+from run_slicegan import dk, ds, dp, df
 from slicegan import preprocessing, util
 import torch
 import torch.nn as nn
@@ -5,6 +6,10 @@ import torch.backends.cudnn as cudnn
 import torch.optim as optim
 import time
 import matplotlib
+import cv2
+import torch.nn.functional as F
+import pickle
+from cv2 import SimpleBlobDetector
 
 
 def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz):
@@ -42,7 +47,7 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz):
     # optimiser params for G and D
     lrg = 0.0001
     lrd = 0.0001
-    #change values of beta1 between 0.1-0.9, beta2 0.9-0.99 and calc evals?
+    # change values of beta1 between 0.1-0.9, beta2 0.9-0.99 and calc evals?
     beta1 = 0
     beta2 = 0.9
     Lambda = 10
@@ -115,6 +120,7 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz):
                 gradient_penalty = util.calc_gradient_penalty(netD, real_data, fake_data_perm[:batch_size],
                                                               batch_size, l,
                                                               device, Lambda, nc)
+                # calcnumcircles
                 disc_cost = out_fake - out_real + gradient_penalty
                 disc_cost.backward()
                 optimizer.step()
@@ -138,7 +144,7 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz):
                     # permute and reshape to feed to disc
                     fake_data_perm = fake.permute(0, d1, 1, d2, d3).reshape(l * batch_size, nc, l, l)
                     output = netD(fake_data_perm)
-                    errG -= output.mean()
+                    errG -= output.mean() # + (num_circles)**2
                     # Calculate gradients for G
                 errG.backward()
                 optG.step()
@@ -175,7 +181,7 @@ def calc_lz(im_size, gk, gs, gp):
     # im_size-> original image size
     # gk, gs, gp-> generator kernel size, stride, and padding
 
-    gk, gs, gp = gk[::-1], gs[::-1], gp[::-1] # because, we want to go in reverse to calculate lz from image size
+    gk, gs, gp = gk[::-1], gs[::-1], gp[::-1]  # because, we want to go in reverse to calculate lz from image size
 
     for lay, (k, s, p) in enumerate(zip(gk, gs, gp)):
 
@@ -192,7 +198,65 @@ def calc_lz(im_size, gk, gs, gp):
         # next_l - k + 2 * p = (l - 1) * s
         # l = ((next_l - k + 2 * p) / s) + 1
 
-        next_l = ((next_l - k + 2 * p)/s) + 1
+        next_l = ((next_l - k + 2 * p) / s) + 1
         next_l = int(next_l)
 
     return next_l
+
+
+class CircleNet(nn.Module, dk, ds, dp, df):
+    def __init__(self):
+        super(CircleNet, self).__init__()
+        self.convs = nn.ModuleList()
+        for lay, (k, s, p) in enumerate(zip(dk, ds, dp)):
+            self.convs.append(nn.Conv2d(df[lay], df[lay + 1], k, s, p, bias=False))
+
+    def forward(self, x):
+        for conv in self.convs[:-1]:
+            x = F.relu_(conv(x))
+        x = self.convs[-1](x)
+        return x
+
+def
+
+
+def numCircles(slice_i):
+    params = cv2.SimpleBlobDetector_Params()
+
+    # params.filterByArea = True
+    # params.minArea = 100
+
+    params.filterByCircularity = True
+    params.minCircularity = 0.9
+
+    detector = cv2.SimpleBlobDetector_create(params)
+    keypoints = detector.detect(slice_i)
+
+    return len(keypoints)
+
+
+def CircularityLoss(imreal, imfake):
+    realcirc, fakecirc, diffcircL = []
+    rlen, flen = len(imreal), len(imfake)
+    D = 0
+
+    if rlen != flen:
+        print("\n The number of real and fake slices do not match")
+        return 0
+
+    for r in range(rlen):
+        realcirc.append(numCircles(imreal[r]))
+
+    for f in range(flen):
+        fakecirc.append(numCircles(imfake[f]))
+
+    for i, R, F in enumerate(zip(realcirc, fakecirc)):
+        diffcirc = int((F - R) ** 2) if R > F else 0  # 0 can also be substituted by int((R-F)**2)
+        diffcircL.append(diffcirc)
+
+        print(f"Slice {i} has a difference of {diffcirc} circles between real and fake \n")
+
+    for diff in diffcircL:
+        D += int(diff)
+
+    return float(D / rlen)

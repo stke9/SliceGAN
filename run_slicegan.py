@@ -5,7 +5,7 @@ Use this file to define your settings for a training run, or
 to generate a synthetic image using a trained generator.
 '''
 
-from slicegan import model, networks, util
+from slicegan import model, networks, util, Circularity
 import argparse
 # Define project name
 Project_name = 'NMC_exemplar_final'
@@ -47,7 +47,7 @@ dp, gp = [1,1,1,1,0],[2,2,2,2,3]
 ## Create Networks
 netD, netG = networks.slicegan_nets(Project_path, Training, image_type, dk, ds, df,dp, gk ,gs, gf, gp)
 
-lz_calced = model.calc_lz(img_size, gk, gs, gp)
+lz_calced = Circularity.calc_lz(img_size, gk, gs, gp)
 
 # Train
 if Training:
