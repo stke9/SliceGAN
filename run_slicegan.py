@@ -44,10 +44,25 @@ df, gf = [img_channels,64,128,256,512,1], [z_channels,512,256,128,64,img_channel
 # paddings
 dp, gp = [1,1,1,1,0],[2,2,2,2,3]
 
-## Create Networks
-netD, netG = networks.slicegan_nets(Project_path, Training, image_type, dk, ds, df,dp, gk ,gs, gf, gp)
+## Create and Train CircleNet
 
-lz_calced = Circularity.calc_lz(img_size, gk, gs, gp)
+Circle_dir = 'TrainedCNet'
+W_dir = 'weights'
+Circle_path = util.mkdr(Project_name, Circle_dir, W_dir)
+
+
+circleNet = Circularity.CircleNet(dk, ds, dp, df)
+Circularity.trainCNet(data_type, data_path, img_size, scale_factor, circleNet)
+
+Circularity.CircleWeights(circleNet, Circle_path, True)
+
+## Create GAN
+
+Circularity.CircleWeights(circleNet, Circle_path, False)
+
+netD, netG = networks.slicegan_nets(Project_path, Training, image_type, dk, ds, df, dp, gk, gs, gf, gp)
+
+lz_calced = model.calc_lz(img_size, gk, gs, gp)
 
 # Train
 if Training:

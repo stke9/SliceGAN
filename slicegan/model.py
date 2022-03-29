@@ -1,5 +1,5 @@
 from run_slicegan import dk, ds, dp, df
-from slicegan import preprocessing, util
+from slicegan import preprocessing, util, Circularity
 import torch
 import torch.nn as nn
 import torch.backends.cudnn as cudnn
@@ -12,7 +12,7 @@ import pickle
 from cv2 import SimpleBlobDetector
 
 
-def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz):
+def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, CircNet):
     """
     train the generator
     :param pth: path to save all files, imgs and data
@@ -25,6 +25,7 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz):
     :param l: image size
     :param nz: latent vector size
     :param sf: scale factor for training data
+    :param CircNet: Trained CircleNet
     :return:
     """
     if len(real_data) == 1:
@@ -56,6 +57,8 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz):
     workers = 0
     # lz = 4
     # The value of lz is now calculated and passed as a computed parameter
+
+    circularity_loss = 0
 
     ##Dataloaders for each orientation
     device = torch.device("cuda:0" if (torch.cuda.is_available() and ngpu > 0) else "cpu")
@@ -120,10 +123,17 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz):
                 gradient_penalty = util.calc_gradient_penalty(netD, real_data, fake_data_perm[:batch_size],
                                                               batch_size, l,
                                                               device, Lambda, nc)
-                # calcnumcircles
-                disc_cost = out_fake - out_real + gradient_penalty
+
+                disc_cost = (out_fake - out_real) + gradient_penalty
+
+                ## If dimension along x, calculate circularity_loss
+
+                if dim == 0:
+                    circularity_loss = Circularity.CircularityLoss(data, fake_data_perm, CircNet)
+
                 disc_cost.backward()
                 optimizer.step()
+
             # logs for plotting
             disc_real_log.append(out_real.item())
             disc_fake_log.append(out_fake.item())
@@ -144,7 +154,8 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz):
                     # permute and reshape to feed to disc
                     fake_data_perm = fake.permute(0, d1, 1, d2, d3).reshape(l * batch_size, nc, l, l)
                     output = netD(fake_data_perm)
-                    errG -= output.mean() # + (num_circles)**2
+                    errG -= output.mean() + circularity_loss
+                    print(f"Circularity Loss for iteration {i} is {circularity_loss}")
                     # Calculate gradients for G
                 errG.backward()
                 optG.step()
@@ -203,60 +214,59 @@ def calc_lz(im_size, gk, gs, gp):
 
     return next_l
 
-
-class CircleNet(nn.Module, dk, ds, dp, df):
-    def __init__(self):
-        super(CircleNet, self).__init__()
-        self.convs = nn.ModuleList()
-        for lay, (k, s, p) in enumerate(zip(dk, ds, dp)):
-            self.convs.append(nn.Conv2d(df[lay], df[lay + 1], k, s, p, bias=False))
-
-    def forward(self, x):
-        for conv in self.convs[:-1]:
-            x = F.relu_(conv(x))
-        x = self.convs[-1](x)
-        return x
-
-def
-
-
-def numCircles(slice_i):
-    params = cv2.SimpleBlobDetector_Params()
-
-    # params.filterByArea = True
-    # params.minArea = 100
-
-    params.filterByCircularity = True
-    params.minCircularity = 0.9
-
-    detector = cv2.SimpleBlobDetector_create(params)
-    keypoints = detector.detect(slice_i)
-
-    return len(keypoints)
+# class CircleNet(nn.Module, dk, ds, dp, df):
+#     def __init__(self):
+#         super(CircleNet, self).__init__()
+#         self.convs = nn.ModuleList()
+#         for lay, (k, s, p) in enumerate(zip(dk, ds, dp)):
+#             self.convs.append(nn.Conv2d(df[lay], df[lay + 1], k, s, p, bias=False))
+#
+#     def forward(self, x):
+#         for conv in self.convs[:-1]:
+#             x = F.relu_(conv(x))
+#         x = self.convs[-1](x)
+#         return x
+#
+# def
 
 
-def CircularityLoss(imreal, imfake):
-    realcirc, fakecirc, diffcircL = []
-    rlen, flen = len(imreal), len(imfake)
-    D = 0
-
-    if rlen != flen:
-        print("\n The number of real and fake slices do not match")
-        return 0
-
-    for r in range(rlen):
-        realcirc.append(numCircles(imreal[r]))
-
-    for f in range(flen):
-        fakecirc.append(numCircles(imfake[f]))
-
-    for i, R, F in enumerate(zip(realcirc, fakecirc)):
-        diffcirc = int((F - R) ** 2) if R > F else 0  # 0 can also be substituted by int((R-F)**2)
-        diffcircL.append(diffcirc)
-
-        print(f"Slice {i} has a difference of {diffcirc} circles between real and fake \n")
-
-    for diff in diffcircL:
-        D += int(diff)
-
-    return float(D / rlen)
+# def numCircles(slice_i):
+#     params = cv2.SimpleBlobDetector_Params()
+#
+#     # params.filterByArea = True
+#     # params.minArea = 100
+#
+#     params.filterByCircularity = True
+#     params.minCircularity = 0.9
+#
+#     detector = cv2.SimpleBlobDetector_create(params)
+#     keypoints = detector.detect(slice_i)
+#
+#     return len(keypoints)
+#
+#
+# def CircularityLoss(imreal, imfake):
+#     realcirc, fakecirc, diffcircL = []
+#     rlen, flen = len(imreal), len(imfake)
+#     D = 0
+#
+#     if rlen != flen:
+#         print("\n The number of real and fake slices do not match")
+#         return 0
+#
+#     for r in range(rlen):
+#         realcirc.append(numCircles(imreal[r]))
+#
+#     for f in range(flen):
+#         fakecirc.append(numCircles(imfake[f]))
+#
+#     for i, R, F in enumerate(zip(realcirc, fakecirc)):
+#         diffcirc = int((F - R) ** 2) if R > F else 0  # 0 can also be substituted by int((R-F)**2)
+#         diffcircL.append(diffcirc)
+#
+#         print(f"Slice {i} has a difference of {diffcirc} circles between real and fake \n")
+#
+#     for diff in diffcircL:
+#         D += int(diff)
+#
+#     return float(D / rlen)

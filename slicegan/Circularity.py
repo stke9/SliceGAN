@@ -25,11 +25,10 @@ class CircleNet(nn.Module, dk, ds, dp, df):
         x = self.convs[-1](x)
         return x
 
-def trainCNet(pth, imtype, datatype, realData, l, sf, CNet):
+
+def trainCNet(datatype, realData, l, sf, CNet):
     """
         train the network to detect and count circles
-        :param pth: path to save all files, imgs and data
-        :param imtype: image type e.g nphase, colour or gray
         :param datatype: training data format e.g. tif, jpg ect
         :param real_data: path to training data
         :param nc: channels
@@ -56,19 +55,19 @@ def trainCNet(pth, imtype, datatype, realData, l, sf, CNet):
     # optimiser params for G and D
     lrc = 0.0001
     # change values of beta1 between 0.1-0.9, beta2 0.9-0.99 and calc evals?
-    Beta1 = 0.9     # Different value as the use case here is fairly standard and therefore would benefit from a non-zero initialization of Beta1
+    Beta1 = 0.9  # Different value as the use case here is fairly standard and therefore would benefit from a non-zero initialization of Beta1
     Beta2 = 0.99
     circle_dim = 0
     cudnn.benchmark = True
     workers = 0
-
 
     ##Dataloaders for each orientation
     device = torch.device("cuda:0" if (torch.cuda.is_available() and ngpu > 0) else "cpu")
     print(device, " will be used.\n")
 
     # Data Loaded along the dimension where circles are to be observed and counted
-    dataLoader = torch.utils.data.DataLoader(dataset_xyz[circle_dim], batch_size=batch_size, shuffle=True, num_workers=workers)
+    dataLoader = torch.utils.data.DataLoader(dataset_xyz[circle_dim], batch_size=batch_size, shuffle=True,
+                                             num_workers=workers)
 
     # Define Network
 
@@ -93,14 +92,15 @@ def trainCNet(pth, imtype, datatype, realData, l, sf, CNet):
 
             iterc += 1
 
-            print(f"Epoch {e} : Slice {iterc} - NRC {realR} NPR {predR} Diff {predR-realR}")
+            print(f"Epoch {e} : Slice {iterc} - NRC {realR} NPR {predR} Diff {predR - realR}")
 
             CLoss = pred_OutR - real_OutR
-            CLoss.backward()
-            optC.step()
+
+        CLoss.backward()
+        optC.step()
 
 
-def CircleWeights (cnet, WeightPath, SL=bool(True)):
+def CircleWeights(cnet, WeightPath, SL=bool(True)):
     """
     :param cnet: circlenet model
     :param WeightPath: Path to save or load weights
@@ -111,23 +111,9 @@ def CircleWeights (cnet, WeightPath, SL=bool(True)):
     if SL:
         torch.save(cnet.state_dict(), WeightPath)
     else:
-        model = CircleNet(*args, **kwargs)
-        model.load_state_dict(torch.load(WeightPath))
-        return model
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+        cnet = CircleNet()
+        cnet.load_state_dict(torch.load(WeightPath))
+        return cnet
 
 
 def numCircles(slice_i):
@@ -145,28 +131,30 @@ def numCircles(slice_i):
     return len(keypoints)
 
 
-def CircularityLoss(imreal, imfake):
+def CircularityLoss(imreal, imfake, CL_CNET):
     realcirc, fakecirc, diffcircL = []
-    rlen, flen = len(imreal), len(imfake)
+    rlen, flen = 0
     D = 0
+
+    for r in imreal:
+        realcirc.append(CL_CNET(r))
+        rlen += 1
+
+    for f in imfake:
+        fakecirc.append(CL_CNET(f))
+        flen += 1
 
     if rlen != flen:
         print("\n The number of real and fake slices do not match")
         return 0
 
-    for r in range(rlen):
-        realcirc.append(numCircles(imreal[r]))
-
-    for f in range(flen):
-        fakecirc.append(numCircles(imfake[f]))
-
     for i, R, F in enumerate(zip(realcirc, fakecirc)):
-        diffcirc = int((F - R) ** 2) if R > F else 0  # 0 can also be substituted by int((R-F)**2)
+        diffcirc = ((F - R) ** 2) if R > F else 0  # 0 can also be substituted by int((R-F)**2)
         diffcircL.append(diffcirc)
 
         print(f"Slice {i} has a difference of {diffcirc} circles between real and fake \n")
 
     for diff in diffcircL:
-        D += int(diff)
+        D += diff
 
-    return float(D / rlen)
+    return D/rlen
