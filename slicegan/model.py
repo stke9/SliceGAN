@@ -7,7 +7,7 @@ import time
 import matplotlib
 
 
-def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz):
+def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_epochs):
     """
     train the generator
     :param pth: path to save all files, imgs and data
@@ -34,7 +34,7 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz):
     ## Constants for NNs
     matplotlib.use('Agg')
     ngpu = 1
-    num_epochs = 30
+    # num_epochs = 30
 
     # batch sizes
     batch_size = 32

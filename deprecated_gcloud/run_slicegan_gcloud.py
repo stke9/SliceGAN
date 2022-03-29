@@ -5,17 +5,28 @@ Use this file to define your settings for a training run, or
 to generate a synthetic image using a trained generator.
 '''
 
+# from parso import parse
 from slicegan import model, networks, util
 import argparse
 # Define project name
-Project_name = 'NMC_exemplar_final'
+Project_name = 'google_first_test'
 # Specify project folder.
-Project_dir = 'Trained_Generators/test_local'
+
 # Run with False to show an image during or after training
 parser = argparse.ArgumentParser()
-parser.add_argument('training', type=int)
+
+# Training mode or eveluation mode ? 
+# 1 means training, 0 means evaluation
+parser.add_argument('--training', type=int)
+
+Project_dir = 'gs://slicegan_bucket/BinarySliceGAN'
+
+# Take the arguments
 args = parser.parse_args()
+
+
 Training = args.training
+# Training = True
 Project_path = util.mkdr(Project_name, Project_dir, Training)
 
 ## Data Processing
@@ -24,9 +35,10 @@ Project_path = util.mkdr(Project_name, Project_dir, Training)
 image_type = 'threephase'
 # define data type (for colour/grayscale images, must be 'colour' / '
 # greyscale. nphase can be, 'tif', 'png', 'jpg','array')
-data_type = 'tif'
-# Path to your data. One string for isotrpic, 3 for anisotropic
-data_path = ['Examples/NMC.tif']
+# data_type = 'tif'
+data_type = args.data_type
+# Path to your data. One string for isotropic, 3 for anisotropic
+data_path = ['gs://slicegan_bucket/TrainingData/3D_data_binary.tif']
 
 ## Network Architectures
 # Training image size, no. channels and scale factor vs raw data
@@ -35,20 +47,12 @@ img_size, img_channels, scale_factor = 64, 3,  1
 z_channels = 16
 # Layers in G and D
 lays = 6
-# kernals for each layer
-# dk, gk = [4]*lays, [4]*lays
-# # strides
-# ds, gs = [2]*lays, [2]*lays
-# # no. filters
-# df, gf = [img_channels,64,128,256,512,1], [z_channels,512,256,128,64,img_channels]
-# # paddings
-# dp, gp = [1,1,1,1,0],[2,2,2,2,3]
 
 net_params = {
 
     "pth": util.mkdr(Project_name, Project_dir, Training),
     "Training": Training,
-    "imtype": 'threephase',
+    "imtype": image_type,
 
     "dk" : [4]*lays,
     "gk" : [4]*lays,
