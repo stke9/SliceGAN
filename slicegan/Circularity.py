@@ -9,11 +9,12 @@ import matplotlib
 import cv2
 import torch.nn.functional as F
 import pickle
+import math
 from cv2 import SimpleBlobDetector
 
 
-class CircleNet(nn.Module, dk, ds, dp, df):
-    def __init__(self):
+class CircleNet(nn.Module):
+    def __init__(self, dk, ds, dp, df):
         super(CircleNet, self).__init__()
         self.convs = nn.ModuleList()
         for lay, (k, s, p) in enumerate(zip(dk, ds, dp)):
@@ -52,16 +53,14 @@ def trainCNet(datatype, realData, l, sf, CNet):
 
     # batch sizes
     batch_size = 8
-    # optimiser params for G and D
+    # optimiser params
     lrc = 0.0001
-    # change values of beta1 between 0.1-0.9, beta2 0.9-0.99 and calc evals?
     Beta1 = 0.9  # Different value as the use case here is fairly standard and therefore would benefit from a non-zero initialization of Beta1
     Beta2 = 0.99
     circle_dim = 0
     cudnn.benchmark = True
     workers = 0
 
-    ##Dataloaders for each orientation
     device = torch.device("cuda:0" if (torch.cuda.is_available() and ngpu > 0) else "cpu")
     print(device, " will be used.\n")
 
@@ -79,22 +78,44 @@ def trainCNet(datatype, realData, l, sf, CNet):
 
     print("Starting CNet Training...")
 
+    realData = dataLoader.to(device)
+
     for e in range(numEpochs):
 
-        realData = dataLoader.to(device)
+        minAr, maxAr = 100000, 0
+
         iterc = 0
+        LList = []
 
         for R in realData:
             pred_OutR = cNet(R).view(-1)
-            real_OutR = numCircles(R)
+            if e == 0:
+                real_OutR, min_area, max_area = numCircles(R, 1)
+
+                if min_area < minAr:
+                    minAr = min_area
+                if max_area > maxAr:
+                    maxAr = max_area
+            else:
+                real_OutR = numCircles(R, 2, minAr, maxAr)
 
             predR, realR = int(pred_OutR), int(real_OutR)
 
             iterc += 1
 
-            print(f"Epoch {e} : Slice {iterc} - NRC {realR} NPR {predR} Diff {predR - realR}")
+            print(f"Epoch {e} : Slice {iterc} - NRC {realR} NPR {predR} Diff {predR - realR}\n")
 
-            CLoss = pred_OutR - real_OutR
+            cLoss = (pred_OutR - real_OutR)**2 if pred_OutR > real_OutR else 0
+            LList.append(cLoss)
+
+        if e == 0:
+            print(f"\n\n Circle Area Thresholds: minArea = {minAr} & maxArea = {maxAr} \n\n")
+
+        lsum = 0
+        for ll in LList:
+            lsum += ll
+
+        CLoss = lsum/iterc
 
         CLoss.backward()
         optC.step()
@@ -111,24 +132,53 @@ def CircleWeights(cnet, WeightPath, SL=bool(True)):
     if SL:
         torch.save(cnet.state_dict(), WeightPath)
     else:
-        cnet = CircleNet()
         cnet.load_state_dict(torch.load(WeightPath))
         return cnet
 
 
-def numCircles(slice_i):
+def numCircles(slice_i, area_find = 3, MinArea = 0, MaxArea = 100):
+    """
+    :param slice_i: slice in which number of circles is to be calculated
+    :param area_find: 1-> find and return min and max area; 2->filter by area; 3-> no filter, no find;
+    :param MinArea: only used for calling in area_find=2
+    :param MaxArea: only used for calling in area_find=2
+    :return:
+    """
     params = cv2.SimpleBlobDetector_Params()
-
-    # params.filterByArea = True
-    # params.minArea = 100
+    sizepoints = []
 
     params.filterByCircularity = True
     params.minCircularity = 0.9
 
-    detector = cv2.SimpleBlobDetector_create(params)
-    keypoints = detector.detect(slice_i)
+    if area_find == 1:
 
-    return len(keypoints)
+        ## We want to find max and min area of circles in the slice to be used later
+
+        detector = cv2.SimpleBlobDetector_create(params)
+        keypoints = detector.detect(slice_i)
+        for k in keypoints:
+            sizepoints.append(k.size())
+
+        kmax = ((max(sizepoints)/2)**2)*math.pi
+        kmin = ((min(sizepoints)/2)**2)*math.pi
+        return len(keypoints), kmin, kmax
+
+    elif area_find == 2:
+
+        params.filterByArea = True
+        params.minArea = MinArea
+        params.maxArea = MaxArea
+
+        detector = cv2.SimpleBlobDetector_create(params)
+        keypoints = detector.detect(slice_i)
+
+        return len(keypoints)
+
+    else:
+        detector = cv2.SimpleBlobDetector_create(params)
+        keypoints = detector.detect(slice_i)
+
+        return len(keypoints)
 
 
 def CircularityLoss(imreal, imfake, CL_CNET):
@@ -142,6 +192,8 @@ def CircularityLoss(imreal, imfake, CL_CNET):
 
     for f in imfake:
         fakecirc.append(CL_CNET(f))
+        gg = numCircles(f)
+        print(f"Slice {f} has a difference of {CL_CNET(f) - gg} \n")
         flen += 1
 
     if rlen != flen:

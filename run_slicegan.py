@@ -58,7 +58,7 @@ Circularity.CircleWeights(circleNet, Circle_path, True)
 
 ## Create GAN
 
-Circularity.CircleWeights(circleNet, Circle_path, False)
+circleNet = Circularity.CircleWeights(circleNet, Circle_path, False)
 
 netD, netG = networks.slicegan_nets(Project_path, Training, image_type, dk, ds, df, dp, gk, gs, gf, gp)
 
