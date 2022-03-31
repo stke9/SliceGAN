@@ -10,7 +10,7 @@ import argparse
 # Define project name
 Project_name = 'NMC_exemplar_final'
 # Specify project folder.
-Project_dir = 'Trained_Generators/NMC'
+Project_dir = 'Trained_Generators'
 # Run with False to show an image during or after training
 parser = argparse.ArgumentParser()
 parser.add_argument('training', type=int)
@@ -21,7 +21,7 @@ Project_path = util.mkdr(Project_name, Project_dir, Training)
 ## Data Processing
 # Define image  type (colour, grayscale, three-phase or two-phase.
 # n-phase materials must be segmented)
-image_type = 'threephase'
+image_type = 'twophase'
 # define data type (for colour/grayscale images, must be 'colour' / '
 # greyscale. nphase can be, 'tif', 'png', 'jpg','array')
 data_type = 'tif'
@@ -51,7 +51,7 @@ W_dir = 'weights'
 Circle_path = util.mkdr(Project_name, Circle_dir, W_dir)
 
 
-circleNet = Circularity.CircleNet(dk, ds, dp, df)
+circleNet = Circularity.init_circleNet(dk, ds, df, dp)
 Circularity.trainCNet(data_type, data_path, img_size, scale_factor, circleNet)
 
 Circularity.CircleWeights(circleNet, Circle_path, True)

@@ -11,7 +11,7 @@ def batch(data,type,l, sf):
     :param sf: scale factor
     :return:
     """
-    Testing = True
+    Testing = False
     if type == 'png' or type == 'jpg':
         datasetxyz = []
         for img in data:

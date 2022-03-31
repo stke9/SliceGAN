@@ -1,4 +1,3 @@
-from run_slicegan import dk, ds, dp, df
 from slicegan import preprocessing, util
 import torch
 import torch.nn as nn
@@ -12,20 +11,27 @@ import pickle
 import math
 from cv2 import SimpleBlobDetector
 
+dk = [4] * 6
+ds = [2] * 6
+dp = [1,1,1,1,0]
+df = [3,64,128,256,512,1]
 
-class CircleNet(nn.Module):
-    def __init__(self, dk, ds, dp, df):
-        super(CircleNet, self).__init__()
-        self.convs = nn.ModuleList()
-        for lay, (k, s, p) in enumerate(zip(dk, ds, dp)):
-            self.convs.append(nn.Conv2d(df[lay], df[lay + 1], k, s, p, bias=False))
+def init_circleNet(dk, ds, df, dp):
 
-    def forward(self, x):
-        for conv in self.convs[:-1]:
-            x = F.relu_(conv(x))
-        x = self.convs[-1](x)
-        return x
+    class CircleNet(nn.Module):
+        def __init__(self):
+            super(CircleNet, self).__init__()
+            self.convs = nn.ModuleList()
+            for lay, (k, s, p) in enumerate(zip(dk, ds, dp)):
+                self.convs.append(nn.Conv2d(df[lay], df[lay + 1], k, s, p, bias=False))
 
+        def forward(self, x):
+            for conv in self.convs[:-1]:
+                x = F.relu_(conv(x))
+            x = self.convs[-1](x)
+            return x
+
+    return CircleNet
 
 def trainCNet(datatype, realData, l, sf, CNet):
     """
@@ -43,7 +49,7 @@ def trainCNet(datatype, realData, l, sf, CNet):
     if len(realData) == 1:
         realData *= 3
 
-    print('Loading Dataset...')
+    print('Loading Circle Dataset...')
     dataset_xyz = preprocessing.batch(realData, datatype, l, sf)
 
     ## Constants for NNs
@@ -93,9 +99,9 @@ def trainCNet(datatype, realData, l, sf, CNet):
                 real_OutR, min_area, max_area = numCircles(R, 1)
 
                 if min_area < minAr:
-                    minAr = min_area
+                    minAr = min_area - 10
                 if max_area > maxAr:
-                    maxAr = max_area
+                    maxAr = max_area + 10
             else:
                 real_OutR = numCircles(R, 2, minAr, maxAr)
 
