@@ -206,7 +206,7 @@ def test_img(pth, imtype, netG, nz = 64, lf = 4, periodic=False):
     :param periodic: list of periodicity in axis 1 through n
     :return:
     """
-    netG.load_state_dict(torch.load(pth + '_Gen.pt'))
+    netG.load_state_dict(torch.load(pth + '_Gen.pt', map_location=torch.device("cpu")))
     netG.eval()
     noise = torch.randn(1, nz, lf, lf, lf)
     if periodic:
