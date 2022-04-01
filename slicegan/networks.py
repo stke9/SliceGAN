@@ -56,4 +56,3 @@ def slicegan_nets(pth, Training, imtype, dk,ds,df,dp,gk,gs,gf,gp):
             return x
 
     return Discriminator, Generator
-

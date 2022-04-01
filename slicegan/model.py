@@ -6,7 +6,6 @@ import torch.optim as optim
 import time
 import matplotlib
 
-
 def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_epochs):
     """
     train the generator
@@ -180,28 +179,49 @@ def check_conv_vals(k, s, p):
         return 0
 
 
-def calc_lz(im_size, gk, gs, gp):
+def lz_img_size_converter(gk, gs, gp, img_size = None, lz= None, lz_to_im = False):
     # im_size-> original image size
     # gk, gs, gp-> generator kernel size, stride, and padding
+    if not lz_to_im:
+        gk, gs, gp = gk[::-1], gs[::-1], gp[::-1]
+        # because, we want to go in reverse to calculate lz from image size
+    
+    if lz_to_im:
+        if lz == None:
+            raise ValueError("No lz noise dimension given")
+        
+        for lay, (k, s, p) in enumerate(zip(gk, gs, gp)):
 
-    gk, gs, gp = gk[::-1], gs[::-1], gp[::-1] # because, we want to go in reverse to calculate lz from image size
+            if lay == 0:
+                next_im = lz
 
-    for lay, (k, s, p) in enumerate(zip(gk, gs, gp)):
+            # \/ equation to calculate size in next layer given transpose convolution (reverse this to find lz)
+            next_im = k + ((next_im - 1) * s) - 2 * p
 
-        ch = check_conv_vals(k, s, p)
-        if ch == 0:
-            print("Values not compatible for uniform information density in the generator samples.")
-            break
+            next_im = int(next_im)
+         
+        return next_im
 
-        if lay == 0:
-            next_l = im_size
+    else:
+        if img_size == None:
+            raise ValueError("No imagesize given")
+        
+        for lay, (k, s, p) in enumerate(zip(gk, gs, gp)):
 
-        # \/ equation to calculate size in next layer given transpose convolution (reverse this to find lz)
-        # next_l = k + ((l - 1) * s) - 2 * p
-        # next_l - k + 2 * p = (l - 1) * s
-        # l = ((next_l - k + 2 * p) / s) + 1
+            ch = check_conv_vals(k, s, p)
+            if ch == 0:
+                raise ValueError("Values not compatible for uniform information density in the generator samples.")
+            if lay == 0:
+                next_l = img_size
 
-        next_l = ((next_l - k + 2 * p)/s) + 1
-        next_l = int(next_l)
+            # \/ equation to calculate size in next layer given transpose convolution (reverse this to find lz)
+            # next_l = k + ((l - 1) * s) - 2 * p
+            # next_l - k + 2 * p = (l - 1) * s
+            # l = ((next_l - k + 2 * p) / s) + 1
+            next_l = ((next_l - k + 2 * p)/s) + 1
+            next_l = int(next_l)
 
-    return next_l
+        return next_l
+
+       
+
