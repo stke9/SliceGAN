@@ -5,50 +5,54 @@ Use this file to define your settings for a training run, or
 to generate a synthetic image using a trained generator.
 '''
 
-from slicegan import model, networks, util, Circularity
+# from parso import parse
+from slicegan import model, networks, util
 import argparse
 # Define project name
-Project_name = 'NMC_exemplar_final'
+Project_name = 'google_first_test'
 # Specify project folder.
-Project_dir = 'Trained_Generators'
+
 # Run with False to show an image during or after training
 parser = argparse.ArgumentParser()
+
+# Training mode or eveluation mode ? 
+# 1 means training, 0 means evaluation
 parser.add_argument('training', type=int)
+
+Project_dir = 'gs://slicegan_bucket/BinarySliceGAN'
+
+# Take the arguments
 args = parser.parse_args()
+
+
 Training = args.training
+# Training = True
 Project_path = util.mkdr(Project_name, Project_dir, Training)
 
 ## Data Processing
 # Define image  type (colour, grayscale, three-phase or two-phase.
 # n-phase materials must be segmented)
-image_type = 'twophase'
+image_type = 'threephase'
 # define data type (for colour/grayscale images, must be 'colour' / '
 # greyscale. nphase can be, 'tif', 'png', 'jpg','array')
-data_type = 'tif'
-# Path to your data. One string for isotrpic, 3 for anisotropic
-data_path = ['Examples/3D_data_binary.tif']
+# data_type = 'tif'
+data_type = args.data_type
+# Path to your data. One string for isotropic, 3 for anisotropic
+data_path = ['gs://slicegan_bucket/TrainingData/3D_data_binary.tif']
 
 ## Network Architectures
 # Training image size, no. channels and scale factor vs raw data
-img_size, img_channels, scale_factor = 64, 2,  1
+img_size, img_channels, scale_factor = 64, 3,  1
 # z vector depth
 z_channels = 16
 # Layers in G and D
 lays = 6
-# kernals for each layer
-# dk, gk = [4]*lays, [4]*lays
-# # strides
-# ds, gs = [2]*lays, [2]*lays
-# # no. filters
-# df, gf = [img_channels,64,128,256,512,1], [z_channels,512,256,128,64,img_channels]
-# # paddings
-# dp, gp = [1,1,1,1,0],[2,2,2,2,3]
 
 net_params = {
 
     "pth": util.mkdr(Project_name, Project_dir, Training),
     "Training": Training,
-    "imtype": 'threephase',
+    "imtype": image_type,
 
     "dk" : [4]*lays,
     "gk" : [4]*lays,
@@ -64,33 +68,8 @@ net_params = {
 
     }
 
-
-
-## Create Path
-
-Circle_dir = 'TrainedCNet'
-W_dir = 'weights'
-img_dir = 'img'
-Circle_path = util.mkdr(Project_name, Circle_dir, W_dir)
-blob_path = util.mkdr(Project_name, Circle_dir, img_dir)
-# Test efficacy of Blob Detector on Real Image
-
-imm = util.testCircleDetector(data_path, blob_path)
-ts = Circularity.numCircles(imm)
-
-## Create and Train CircleNet
-
-circleNet = Circularity.init_circleNet(net_params["dk"], net_params["ds"], net_params["df"], net_params["dp"])
-Circularity.trainCNet(data_type, data_path, img_size, scale_factor, circleNet)
-
-Circularity.CircleWeights(circleNet, Circle_path, True)
-
-## Create GAN
-
-circleNet = Circularity.CircleWeights(circleNet, Circle_path, False)
-
+## Create Networks
 netD, netG = networks.slicegan_nets(**net_params)
-# netD, netG = networks.slicegan_nets(Project_path, Training, image_type, dk, ds, df, dp, gk, gs, gf, gp)
 
 lz_calced = model.calc_lz(img_size, net_params["gk"], net_params["gs"], net_params["gs"])
 

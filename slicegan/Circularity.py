@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.backends.cudnn as cudnn
 import torch.optim as optim
-import numpy
+import numpy as np
 import time
 import matplotlib
 import cv2
@@ -174,8 +174,11 @@ def numCircles(slice_i, area_find = 3, MinArea = 0, MaxArea = 100):
     params = cv2.SimpleBlobDetector_Params()
     sizepoints = []
 
+    params.filterByConvexity = False
+    params.filterByInertia = False
+
     params.filterByCircularity = True
-    params.minCircularity = 0.1
+    params.minCircularity = 0.5
 
     if area_find == 1:
 
@@ -209,13 +212,13 @@ def numCircles(slice_i, area_find = 3, MinArea = 0, MaxArea = 100):
     else:
         detector = cv2.SimpleBlobDetector_create(params)
         keypoints = detector.detect(slice_i)
-        print(f"Number of detected circles is: {len(keypoints)}\n")
+        print(f"Number of detected circles is: {len(keypoints)}\nPress any key on the plot to continue.\n")
 
-        # im_with_keypoints = cv2.drawKeypoints(slice_i, keypoints, np.array([]), (0, 0, 255),
-        #                                       cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-        #
-        # cv2.imshow("Keypoints", im_with_keypoints)
-        # cv2.waitKey(0)
+        im_with_keypoints = cv2.drawKeypoints(slice_i, keypoints, np.array([]), (0, 0, 255),
+                                              cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+
+        cv2.imshow("Keypoints", im_with_keypoints)
+        cv2.waitKey(0)
 
         return len(keypoints)
 

@@ -11,8 +11,7 @@ import torch.nn.functional as F
 import pickle
 from cv2 import SimpleBlobDetector
 
-
-def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, CircNet):
+def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_epochs, CircNet = 2, evall = True):
     """
     train the generator
     :param pth: path to save all files, imgs and data
@@ -40,12 +39,13 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, CircNe
     ## Constants for NNs
     matplotlib.use('Agg')
     ngpu = 1
-    num_epochs = 30
+    # num_epochs = 30
 
     # batch sizes
     batch_size = 32
     D_batch_size = 8
     # optimiser params for G and D
+    
     lrg = 0.0001
     lrd = 0.0001
     # change values of beta1 between 0.1-0.9, beta2 0.9-0.99 and calc evals?
@@ -106,6 +106,7 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, CircNe
             ## Generate fake image batch with G
             noise = torch.randn(D_batch_size, nz, lz, lz, lz, device=device)
             fake_data = netG(noise).detach()
+            
             # for each dim (d1, d2 and d3 are used as permutations to make 3D volume into a batch of 2D images)
             for dim, (netD, optimizer, data, d1, d2, d3) in enumerate(
                     zip(netDs, optDs, dataset, [2, 3, 4], [3, 2, 2], [4, 4, 3])):
@@ -118,6 +119,10 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, CircNe
                 out_real = netD(real_data).view(-1).mean()
                 ## train on fake images
                 # perform permutation + reshape to turn volume into batch of 2D images to pass to D
+                # Round n
+                    # 0 2 1 3 4
+                    # 0 3 1 2 4
+                    # 0 4 1 2 3
                 fake_data_perm = fake_data.permute(0, d1, 1, d2, d3).reshape(l * D_batch_size, nc, l, l)
                 out_fake = netD(fake_data_perm).mean()
                 gradient_penalty = util.calc_gradient_penalty(netD, real_data, fake_data_perm[:batch_size],
@@ -125,11 +130,6 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, CircNe
                                                               device, Lambda, nc)
 
                 disc_cost = (out_fake - out_real) + gradient_penalty
-
-                ## If dimension along x, calculate circularity_loss
-
-                if dim == 0:
-                    circularity_loss = Circularity.CircularityLoss(data, fake_data_perm, CircNet)
 
                 disc_cost.backward()
                 optimizer.step()
@@ -154,14 +154,21 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, CircNe
                     # permute and reshape to feed to disc
                     fake_data_perm = fake.permute(0, d1, 1, d2, d3).reshape(l * batch_size, nc, l, l)
                     output = netD(fake_data_perm)
-                    errG -= output.mean() + circularity_loss
-                    print(f"Circularity Loss for iteration {i} is {circularity_loss}")
-                    # Calculate gradients for G
+                    errG -= output.mean()
+                    if not evall:
+                        ## If dimension along x, calculate circularity_loss
+                        if dim == 0:
+                            circularity_loss = Circularity.CircularityLoss(data, fake_data_perm, CircNet)
+
+                        errG -= circularity_loss
+                        print(f"Circularity Loss for iteration {i} is {circularity_loss}")
+                        # Calculate gradients for G
                 errG.backward()
                 optG.step()
 
             # Output training stats & show imgs
             if i % 25 == 0:
+                # Put model into evaluation mode
                 netG.eval()
                 with torch.no_grad():
                     torch.save(netG.state_dict(), pth + '_Gen.pt')
@@ -178,6 +185,8 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, CircNe
                     util.graph_plot([disc_real_log, disc_fake_log], ['real', 'perp'], pth, 'LossGraph')
                     util.graph_plot([Wass_log], ['Wass Distance'], pth, 'WassGraph')
                     util.graph_plot([gp_log], ['Gradient Penalty'], pth, 'GpGraph')
+                
+                # Put model into training mode
                 netG.train()
 
 
@@ -188,85 +197,49 @@ def check_conv_vals(k, s, p):
         return 0
 
 
-def calc_lz(im_size, gk, gs, gp):
+def lz_img_size_converter(gk, gs, gp, img_size = None, lz= None, lz_to_im = False):
     # im_size-> original image size
     # gk, gs, gp-> generator kernel size, stride, and padding
+    if not lz_to_im:
+        gk, gs, gp = gk[::-1], gs[::-1], gp[::-1]
+        # because, we want to go in reverse to calculate lz from image size
+    
+    if lz_to_im:
+        if lz == None:
+            raise ValueError("No lz noise dimension given")
+        
+        for lay, (k, s, p) in enumerate(zip(gk, gs, gp)):
 
-    gk, gs, gp = gk[::-1], gs[::-1], gp[::-1]  # because, we want to go in reverse to calculate lz from image size
+            if lay == 0:
+                next_im = lz
 
-    for lay, (k, s, p) in enumerate(zip(gk, gs, gp)):
+            # \/ equation to calculate size in next layer given transpose convolution (reverse this to find lz)
+            next_im = k + ((next_im - 1) * s) - 2 * p
 
-        ch = check_conv_vals(k, s, p)
-        if ch == 0:
-            print("Values not compatible for uniform information density in the generator samples.")
-            break
+            next_im = int(next_im)
+         
+        return next_im
 
-        if lay == 0:
-            next_l = im_size
+    else:
+        if img_size == None:
+            raise ValueError("No imagesize given")
+        
+        for lay, (k, s, p) in enumerate(zip(gk, gs, gp)):
 
-        # \/ equation to calculate size in next layer given transpose convolution (reverse this to find lz)
-        # next_l = k + ((l - 1) * s) - 2 * p
-        # next_l - k + 2 * p = (l - 1) * s
-        # l = ((next_l - k + 2 * p) / s) + 1
+            ch = check_conv_vals(k, s, p)
+            if ch == 0:
+                raise ValueError("Values not compatible for uniform information density in the generator samples.")
+            if lay == 0:
+                next_l = img_size
 
-        next_l = ((next_l - k + 2 * p) / s) + 1
-        next_l = int(next_l)
+            # \/ equation to calculate size in next layer given transpose convolution (reverse this to find lz)
+            # next_l = k + ((l - 1) * s) - 2 * p
+            # next_l - k + 2 * p = (l - 1) * s
+            # l = ((next_l - k + 2 * p) / s) + 1
+            next_l = ((next_l - k + 2 * p)/s) + 1
+            next_l = int(next_l)
 
-    return next_l
+        return next_l
 
-# class CircleNet(nn.Module, dk, ds, dp, df):
-#     def __init__(self):
-#         super(CircleNet, self).__init__()
-#         self.convs = nn.ModuleList()
-#         for lay, (k, s, p) in enumerate(zip(dk, ds, dp)):
-#             self.convs.append(nn.Conv2d(df[lay], df[lay + 1], k, s, p, bias=False))
-#
-#     def forward(self, x):
-#         for conv in self.convs[:-1]:
-#             x = F.relu_(conv(x))
-#         x = self.convs[-1](x)
-#         return x
-#
-# def
+       
 
-
-# def numCircles(slice_i):
-#     params = cv2.SimpleBlobDetector_Params()
-#
-#     # params.filterByArea = True
-#     # params.minArea = 100
-#
-#     params.filterByCircularity = True
-#     params.minCircularity = 0.9
-#
-#     detector = cv2.SimpleBlobDetector_create(params)
-#     keypoints = detector.detect(slice_i)
-#
-#     return len(keypoints)
-#
-#
-# def CircularityLoss(imreal, imfake):
-#     realcirc, fakecirc, diffcircL = []
-#     rlen, flen = len(imreal), len(imfake)
-#     D = 0
-#
-#     if rlen != flen:
-#         print("\n The number of real and fake slices do not match")
-#         return 0
-#
-#     for r in range(rlen):
-#         realcirc.append(numCircles(imreal[r]))
-#
-#     for f in range(flen):
-#         fakecirc.append(numCircles(imfake[f]))
-#
-#     for i, R, F in enumerate(zip(realcirc, fakecirc)):
-#         diffcirc = int((F - R) ** 2) if R > F else 0  # 0 can also be substituted by int((R-F)**2)
-#         diffcircL.append(diffcirc)
-#
-#         print(f"Slice {i} has a difference of {diffcirc} circles between real and fake \n")
-#
-#     for diff in diffcircL:
-#         D += int(diff)
-#
-#     return float(D / rlen)

@@ -1,5 +1,8 @@
 import os
+
+import cv2
 from torch import nn
+from slicegan import util
 import torch
 from torch import autograd
 import numpy as np
@@ -117,6 +120,7 @@ def post_proc(img,imtype):
         pass
     # for n phase materials, seperate out the channels and take the max
     if imtype == 'twophase':
+        print(f"\nImage Shape before 2phase convert = {img.shape}\np1 = {img} \nImage p1 = {np.array(img[0][1]).shape}")
         img_pp = np.zeros(img.shape[2:])
         p1 = np.array(img[0][0])
         p2 = np.array(img[0][1])
@@ -206,7 +210,7 @@ def test_img(pth, imtype, netG, nz = 64, lf = 4, periodic=False):
     :param periodic: list of periodicity in axis 1 through n
     :return:
     """
-    netG.load_state_dict(torch.load(pth + '_Gen.pt'))
+    netG.load_state_dict(torch.load(pth + '_Gen.pt', map_location=torch.device("cpu")))
     netG.eval()
     noise = torch.randn(1, nz, lf, lf, lf)
     if periodic:
@@ -231,14 +235,29 @@ def test_img(pth, imtype, netG, nz = 64, lf = 4, periodic=False):
 
     return tif, raw, netG
 
-def testCircleDetector(pathy):
+def testCircleDetector(pathy, p2):
 
-    image = tifffile.imread(pathy)
+    image = np.array(tifffile.imread(pathy[0]))
     print(f"Image Shape: {image.shape}")
 
     image = image[0,:,:]
+    valys = np.unique(image)
 
-    return image
+    # y = np.random.randint(0, 915)
+    # z = np.random.randint(0, 915)
+    ims = 916
+    data = np.empty([1, len(valys), ims, ims])
+
+    for cnt, phs in enumerate(list(valys)):
+        img1 = np.zeros([ims, ims])
+
+        img1[image[:, :] == phs] = 1
+        data[0, cnt, :, :] = img1[:, :]
+    util.test_plotter(data, 1, "twophase", p2, True)
+
+    imgf = cv2.imread(p2 + "_slices.png")
+
+    return imgf
 
 
 

@@ -22,7 +22,6 @@ def slicegan_nets(pth, Training, imtype, dk,ds,df,dp,gk,gs,gf,gp):
             # read the data as binary data stream
             dk, ds, df, dp, gk, gs, gf, gp  = pickle.load(filehandle)
 
-
     # Make nets
     class Generator(nn.Module):
         def __init__(self):
@@ -57,4 +56,3 @@ def slicegan_nets(pth, Training, imtype, dk,ds,df,dp,gk,gs,gf,gp):
             return x
 
     return Discriminator, Generator
-
