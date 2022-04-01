@@ -139,5 +139,3 @@ def batch(data,type,l, sf):
             dataset = torch.utils.data.TensorDataset(data)
             datasetxyz.append(dataset)
     return datasetxyz
-
-

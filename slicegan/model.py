@@ -11,7 +11,15 @@ import torch.nn.functional as F
 import pickle
 from cv2 import SimpleBlobDetector
 
-def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_epochs, CircNet):
+noise_distributions = {
+    "normal" : torch.distributions.normal.Normal(0,1),
+    "laplace" : torch.distributions.laplace.Laplace(0,1),
+    "uniform" : torch.distributions.uniform.Uniform(-1,1),
+    "cauchy": torch.distributions.cauchy.Cauchy(0,1)
+
+}
+
+def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_epochs, CircNet, noise_type):
     """
     train the generator
     :param pth: path to save all files, imgs and data
@@ -27,6 +35,12 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_ep
     :param CircNet: Trained CircleNet
     :return:
     """
+
+    if noise_type not in ("normal","laplace","uniform","cauchy"):
+        raise ValueError("invalid noise distribution")
+    else:
+        noise_distribution = noise_distributions[noise_type]
+
     if len(real_data) == 1:
         real_data *= 3
         isotropic = True
@@ -104,7 +118,8 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_ep
             ### Initialise
             ### Discriminator
             ## Generate fake image batch with G
-            noise = torch.randn(D_batch_size, nz, lz, lz, lz, device=device)
+            # noise = torch.randn(D_batch_size, nz, lz, lz, lz, device=device)
+            noise = noise_distribution.sample((D_batch_size, nz, lz, lz, lz)).to(device)
             fake_data = netG(noise).detach()
             
             # for each dim (d1, d2 and d3 are used as permutations to make 3D volume into a batch of 2D images)
@@ -172,7 +187,8 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_ep
                 with torch.no_grad():
                     torch.save(netG.state_dict(), pth + '_Gen.pt')
                     torch.save(netD.state_dict(), pth + '_Disc.pt')
-                    noise = torch.randn(1, nz, lz, lz, lz, device=device)
+                    # noise = torch.randn(1, nz, lz, lz, lz, device=device)
+                    noise = noise_distribution.sample((D_batch_size, nz, lz, lz, lz)).to(device)
                     img = netG(noise)
                     ###Print progress
                     ## calc ETA

@@ -35,6 +35,9 @@ img_size, img_channels, scale_factor = 64, 2,  1
 z_channels = 16
 # Layers in G and D
 lays = 6
+
+# Type of noise distribution
+noise_type = "normal"
 # kernals for each layer
 # dk, gk = [4]*lays, [4]*lays
 # # strides
@@ -60,9 +63,7 @@ net_params = {
     "gf": [z_channels,512,256,128,64,img_channels],
 
     "dp": [1,1,1,1,0],
-    "gp": [2,2,2,2,3]
-
-
+    "gp": [2,2,2,2,3],
     }
 
 ## Create Networks
@@ -107,7 +108,8 @@ if Training:
         "nz": z_channels,
         "sf": scale_factor,
         "lz": lz_calced,
-        "num_epochs": 1
+        "num_epochs": 1,
+        "noise_type": noise_type
     }
 
     model.train(**train_params)
@@ -118,6 +120,7 @@ else:
         "Gen": netG(),
         "nz": z_channels,
         "lf": 4,
-        "periodic": False
+        "periodic": False,
+        "noise_type": noise_type
     }
     img, raw, netG = util.test_img(**test_params)
