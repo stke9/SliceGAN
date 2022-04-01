@@ -26,11 +26,11 @@ image_type = 'twophase'
 # greyscale. nphase can be, 'tif', 'png', 'jpg','array')
 data_type = 'tif'
 # Path to your data. One string for isotrpic, 3 for anisotropic
-data_path = ['Examples/NMC.tif']
+data_path = ['Examples/3D_data_binary.tif']
 
 ## Network Architectures
 # Training image size, no. channels and scale factor vs raw data
-img_size, img_channels, scale_factor = 64, 3,  1
+img_size, img_channels, scale_factor = 64, 2,  1
 # z vector depth
 z_channels = 16
 # Layers in G and D
@@ -43,6 +43,11 @@ ds, gs = [2]*lays, [2]*lays
 df, gf = [img_channels,64,128,256,512,1], [z_channels,512,256,128,64,img_channels]
 # paddings
 dp, gp = [1,1,1,1,0],[2,2,2,2,3]
+
+# Test efficacy of Blob Detector on Real Image
+
+# imm = util.testCircleDetector(data_path)
+# ts = Circularity.numCircles(imm)
 
 ## Create and Train CircleNet
 
