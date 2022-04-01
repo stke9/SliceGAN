@@ -53,7 +53,7 @@ def batch(data,type,l, sf):
         x_max, y_max, z_max = img.shape[:]
         print('training image shape: ', img.shape)
         vals = np.unique(img)
-        for dim in range(3):
+        for dim in range(3): # change back to 3
             data = np.empty([32 * 900, len(vals), l, l])
             print('dataset ', dim)
             for i in range(32*900):

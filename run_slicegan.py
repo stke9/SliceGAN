@@ -8,7 +8,7 @@ to generate a synthetic image using a trained generator.
 from slicegan import model, networks, util, Circularity
 import argparse
 # Define project name
-Project_name = 'NMC_exemplar_final'
+Project_name = 'NMC_exemplar_final2'
 # Specify project folder.
 Project_dir = 'Trained_Generators'
 # Run with False to show an image during or after training
@@ -26,11 +26,11 @@ image_type = 'twophase'
 # greyscale. nphase can be, 'tif', 'png', 'jpg','array')
 data_type = 'tif'
 # Path to your data. One string for isotrpic, 3 for anisotropic
-data_path = ['Examples/NMC.tif']
+data_path = ['TrainingData/3D_data_binary.tif']
 
 ## Network Architectures
 # Training image size, no. channels and scale factor vs raw data
-img_size, img_channels, scale_factor = 64, 3,  1
+img_size, img_channels, scale_factor = 64, 2,  1
 # z vector depth
 z_channels = 16
 # Layers in G and D
@@ -60,13 +60,17 @@ net_params = {
     "gf": [z_channels,512,256,128,64,img_channels],
 
     "dp": [1,1,1,1,0],
-    "gp": [2,2,2,2,3],
+    "gp": [2,2,2,2,3]
+
 
     }
 
-
-
 ## Create Networks
+
+# Test efficacy of Blob Detector on Real Image
+
+# imm = util.testCircleDetector(data_path)
+# ts = Circularity.numCircles(imm)
 
 ## Create and Train CircleNet
 

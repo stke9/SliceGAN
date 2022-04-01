@@ -3,12 +3,16 @@ import torch
 import torch.nn as nn
 import torch.backends.cudnn as cudnn
 import torch.optim as optim
+import numpy
 import time
 import matplotlib
 import cv2
 import torch.nn.functional as F
 import pickle
 import math
+import scipy.misc
+from PIL import Image
+
 from cv2 import SimpleBlobDetector
 
 dk = [4] * 6
@@ -37,11 +41,9 @@ def trainCNet(datatype, realData, l, sf, CNet):
     """
         train the network to detect and count circles
         :param datatype: training data format e.g. tif, jpg ect
-        :param real_data: path to training data
-        :param nc: channels
+        :param realData: path to training data
         :param CNet:
         :param l: image size
-        :param nz: latent vector size
         :param sf: scale factor for training data
         :return:
     """
@@ -49,8 +51,16 @@ def trainCNet(datatype, realData, l, sf, CNet):
     if len(realData) == 1:
         realData *= 3
 
+    P_name = 'NMC_exemplar_final'
+    C_dir = 'TrainedCNet'
+    im_dir = 'weights'
+
+    im_type = 'twophase'
+    cpath = util.mkdr(P_name, C_dir, im_dir)
+
     print('Loading Circle Dataset...')
     dataset_xyz = preprocessing.batch(realData, datatype, l, sf)
+    # print(type(dataset_xyz[0]))
 
     ## Constants for NNs
     # matplotlib.use('Agg')
@@ -58,7 +68,7 @@ def trainCNet(datatype, realData, l, sf, CNet):
     numEpochs = 30
 
     # batch sizes
-    batch_size = 8
+    batch_size = 1  # CHANGE BACK TO 8
     # optimiser params
     lrc = 0.0001
     Beta1 = 0.9  # Different value as the use case here is fairly standard and therefore would benefit from a non-zero initialization of Beta1
@@ -84,8 +94,6 @@ def trainCNet(datatype, realData, l, sf, CNet):
 
     print("Starting CNet Training...")
 
-    realData = dataLoader.to(device)
-
     for e in range(numEpochs):
 
         minAr, maxAr = 100000, 0
@@ -93,17 +101,30 @@ def trainCNet(datatype, realData, l, sf, CNet):
         iterc = 0
         LList = []
 
-        for R in realData:
+        for R in dataLoader:
+            # print(rData)
+            print(f"\n {len(R)}")
+
+            R = R[0].to(device)
             pred_OutR = cNet(R).view(-1)
+
+            print(f"Type: {type(R)} Size: {R.size()}")
+            util.test_plotter(R, 1, im_type, cpath, True)
+            # R = R.cpu().detach().numpy()
+            # print(R)
+            # print(f"Type: {type(R)} Size: {R.shape}")
+            # cv2.imwrite("imageRR.png", R)
+            R_img = cv2.imread(cpath + "_slices.png")
+
             if e == 0:
-                real_OutR, min_area, max_area = numCircles(R, 1)
+                real_OutR, min_area, max_area = numCircles(R_img, 1)
 
                 if min_area < minAr:
                     minAr = min_area - 10
                 if max_area > maxAr:
                     maxAr = max_area + 10
             else:
-                real_OutR = numCircles(R, 2, minAr, maxAr)
+                real_OutR = numCircles(R_img, 2, minAr, maxAr)
 
             predR, realR = int(pred_OutR), int(real_OutR)
 
@@ -154,7 +175,7 @@ def numCircles(slice_i, area_find = 3, MinArea = 0, MaxArea = 100):
     sizepoints = []
 
     params.filterByCircularity = True
-    params.minCircularity = 0.9
+    params.minCircularity = 0.1
 
     if area_find == 1:
 
@@ -162,11 +183,16 @@ def numCircles(slice_i, area_find = 3, MinArea = 0, MaxArea = 100):
 
         detector = cv2.SimpleBlobDetector_create(params)
         keypoints = detector.detect(slice_i)
-        for k in keypoints:
-            sizepoints.append(k.size())
 
-        kmax = ((max(sizepoints)/2)**2)*math.pi
-        kmin = ((min(sizepoints)/2)**2)*math.pi
+        # for k in keypoints:
+        #     sizepoints.append(k)
+
+        print(len(keypoints))
+
+        kmin, kmax = 0, 10000
+
+        # kmax = ((max(sizepoints)/2)**2)*math.pi
+        # kmin = ((min(sizepoints)/2)**2)*math.pi
         return len(keypoints), kmin, kmax
 
     elif area_find == 2:
@@ -183,6 +209,13 @@ def numCircles(slice_i, area_find = 3, MinArea = 0, MaxArea = 100):
     else:
         detector = cv2.SimpleBlobDetector_create(params)
         keypoints = detector.detect(slice_i)
+        print(f"Number of detected circles is: {len(keypoints)}\n")
+
+        # im_with_keypoints = cv2.drawKeypoints(slice_i, keypoints, np.array([]), (0, 0, 255),
+        #                                       cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+        #
+        # cv2.imshow("Keypoints", im_with_keypoints)
+        # cv2.waitKey(0)
 
         return len(keypoints)
 

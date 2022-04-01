@@ -121,6 +121,7 @@ def post_proc(img,imtype):
         p1 = np.array(img[0][0])
         p2 = np.array(img[0][1])
         img_pp[(p1 < p2)] = 1  # background, yellow
+        print(img_pp.shape)
         return img_pp
     if imtype == 'threephase':
         img_pp = np.zeros(img.shape[2:])
@@ -137,7 +138,7 @@ def post_proc(img,imtype):
     if imtype == 'grayscale':
         return 255*img[0][0]
 
-def test_plotter(img,slcs,imtype,pth):
+def test_plotter(img,slcs,imtype,pth, circ=False):
     """
     creates a fig with 3*slc subplots showing example slices along the three axes
     :param img: raw input image
@@ -145,25 +146,36 @@ def test_plotter(img,slcs,imtype,pth):
     :param imtype: image type
     :param pth: where to save plot
     """
+
     img = post_proc(img,imtype)
-    fig, axs = plt.subplots(slcs, 3)
-    if imtype == 'colour':
-        for j in range(slcs):
-            axs[j, 0].imshow(img[j, :, :, :], vmin = 0, vmax = 255)
-            axs[j, 1].imshow(img[:, j, :, :],  vmin = 0, vmax = 255)
-            axs[j, 2].imshow(img[:, :, j, :],  vmin = 0, vmax = 255)
-    elif imtype == 'grayscale':
-        for j in range(slcs):
-            axs[j, 0].imshow(img[j, :, :], cmap = 'gray')
-            axs[j, 1].imshow(img[:, j, :], cmap = 'gray')
-            axs[j, 2].imshow(img[:, :, j], cmap = 'gray')
+
+    if circ == True:
+        fig, ax = plt.subplots(slcs)
+        # for j in range(slcs):
+        #     axs[j, 0].imshow(img[j, :, :])
+        ax.imshow(img)
+        plt.savefig(pth + '_slices.png')
+        plt.close()
     else:
-        for j in range(slcs):
-            axs[j, 0].imshow(img[j, :, :])
-            axs[j, 1].imshow(img[:, j, :])
-            axs[j, 2].imshow(img[:, :, j])
-    plt.savefig(pth + '_slices.png')
-    plt.close()
+
+        fig, axs = plt.subplots(slcs, 3)
+        if imtype == 'colour':
+            for j in range(slcs):
+                axs[j, 0].imshow(img[j, :, :, :], vmin = 0, vmax = 255)
+                axs[j, 1].imshow(img[:, j, :, :],  vmin = 0, vmax = 255)
+                axs[j, 2].imshow(img[:, :, j, :],  vmin = 0, vmax = 255)
+        elif imtype == 'grayscale':
+            for j in range(slcs):
+                axs[j, 0].imshow(img[j, :, :], cmap = 'gray')
+                axs[j, 1].imshow(img[:, j, :], cmap = 'gray')
+                axs[j, 2].imshow(img[:, :, j], cmap = 'gray')
+        else:
+            for j in range(slcs):
+                axs[j, 0].imshow(img[j, :, :])
+                axs[j, 1].imshow(img[:, j, :])
+                axs[j, 2].imshow(img[:, :, j])
+        plt.savefig(pth + '_slices.png')
+        plt.close()
 
 def graph_plot(data,labels,pth,name):
     """
@@ -219,7 +231,14 @@ def test_img(pth, imtype, netG, nz = 64, lf = 4, periodic=False):
 
     return tif, raw, netG
 
+def testCircleDetector(pathy):
 
+    image = tifffile.imread(pathy)
+    print(f"Image Shape: {image.shape}")
+
+    image = image[0,:,:]
+
+    return image
 
 
 
