@@ -66,19 +66,19 @@ net_params = {
 
 
 
-## Create Networks
-
-# Test efficacy of Blob Detector on Real Image
-
-# imm = util.testCircleDetector(data_path)
-# ts = Circularity.numCircles(imm)
-
-## Create and Train CircleNet
+## Create Path
 
 Circle_dir = 'TrainedCNet'
 W_dir = 'weights'
+img_dir = 'img'
 Circle_path = util.mkdr(Project_name, Circle_dir, W_dir)
+blob_path = util.mkdr(Project_name, Circle_dir, img_dir)
+# Test efficacy of Blob Detector on Real Image
 
+imm = util.testCircleDetector(data_path, blob_path)
+ts = Circularity.numCircles(imm)
+
+## Create and Train CircleNet
 
 circleNet = Circularity.init_circleNet(net_params["dk"], net_params["ds"], net_params["df"], net_params["dp"])
 Circularity.trainCNet(data_type, data_path, img_size, scale_factor, circleNet)
