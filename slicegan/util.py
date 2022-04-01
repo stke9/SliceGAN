@@ -72,7 +72,7 @@ def calc_gradient_penalty(netD, real_data, fake_data, batch_size, l, device, gp_
     interpolates.requires_grad_(True)
 
     #pass interpolates through netD
-    disc_interpolates = netD(interpolates)
+    disc_interpolates = netD(interpolates)  # passing through the network
     gradients = autograd.grad(outputs=disc_interpolates, inputs=interpolates,
                               grad_outputs=torch.ones(disc_interpolates.size(), device = device),
                               create_graph=True, only_inputs=True)[0]

@@ -1,12 +1,17 @@
-from slicegan import preprocessing, util
+from run_slicegan import dk, ds, dp, df
+from slicegan import preprocessing, util, Circularity
 import torch
 import torch.nn as nn
 import torch.backends.cudnn as cudnn
 import torch.optim as optim
 import time
 import matplotlib
+import cv2
+import torch.nn.functional as F
+import pickle
+from cv2 import SimpleBlobDetector
 
-def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_epochs):
+def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_epochs, CircNet):
     """
     train the generator
     :param pth: path to save all files, imgs and data
@@ -19,6 +24,7 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_ep
     :param l: image size
     :param nz: latent vector size
     :param sf: scale factor for training data
+    :param CircNet: Trained CircleNet
     :return:
     """
     if len(real_data) == 1:
@@ -42,7 +48,7 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_ep
     
     lrg = 0.0001
     lrd = 0.0001
-    #change values of beta1 between 0.1-0.9, beta2 0.9-0.99 and calc evals?
+    # change values of beta1 between 0.1-0.9, beta2 0.9-0.99 and calc evals?
     beta1 = 0
     beta2 = 0.9
     Lambda = 10
@@ -51,6 +57,8 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_ep
     workers = 0
     # lz = 4
     # The value of lz is now calculated and passed as a computed parameter
+
+    circularity_loss = 0
 
     ##Dataloaders for each orientation
     device = torch.device("cuda:0" if (torch.cuda.is_available() and ngpu > 0) else "cpu")
@@ -120,9 +128,17 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_ep
                 gradient_penalty = util.calc_gradient_penalty(netD, real_data, fake_data_perm[:batch_size],
                                                               batch_size, l,
                                                               device, Lambda, nc)
-                disc_cost = out_fake - out_real + gradient_penalty
+
+                disc_cost = (out_fake - out_real) + gradient_penalty
+
+                ## If dimension along x, calculate circularity_loss
+
+                if dim == 0:
+                    circularity_loss = Circularity.CircularityLoss(data, fake_data_perm, CircNet)
+
                 disc_cost.backward()
                 optimizer.step()
+
             # logs for plotting
             disc_real_log.append(out_real.item())
             disc_fake_log.append(out_fake.item())
@@ -143,7 +159,8 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_ep
                     # permute and reshape to feed to disc
                     fake_data_perm = fake.permute(0, d1, 1, d2, d3).reshape(l * batch_size, nc, l, l)
                     output = netD(fake_data_perm)
-                    errG -= output.mean()
+                    errG -= output.mean() + circularity_loss
+                    print(f"Circularity Loss for iteration {i} is {circularity_loss}")
                     # Calculate gradients for G
                 errG.backward()
                 optG.step()
