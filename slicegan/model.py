@@ -11,7 +11,7 @@ import torch.nn.functional as F
 import pickle
 from cv2 import SimpleBlobDetector
 
-def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_epochs, CircNet):
+def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_epochs, CircNet = 2, evall = True):
     """
     train the generator
     :param pth: path to save all files, imgs and data
@@ -131,11 +131,6 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_ep
 
                 disc_cost = (out_fake - out_real) + gradient_penalty
 
-                ## If dimension along x, calculate circularity_loss
-
-                if dim == 0:
-                    circularity_loss = Circularity.CircularityLoss(data, fake_data_perm, CircNet)
-
                 disc_cost.backward()
                 optimizer.step()
 
@@ -159,9 +154,15 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_ep
                     # permute and reshape to feed to disc
                     fake_data_perm = fake.permute(0, d1, 1, d2, d3).reshape(l * batch_size, nc, l, l)
                     output = netD(fake_data_perm)
-                    errG -= output.mean() + circularity_loss
-                    print(f"Circularity Loss for iteration {i} is {circularity_loss}")
-                    # Calculate gradients for G
+                    errG -= output.mean()
+                    if not evall:
+                        ## If dimension along x, calculate circularity_loss
+                        if dim == 0:
+                            circularity_loss = Circularity.CircularityLoss(data, fake_data_perm, CircNet)
+
+                        errG -= circularity_loss
+                        print(f"Circularity Loss for iteration {i} is {circularity_loss}")
+                        # Calculate gradients for G
                 errG.backward()
                 optG.step()
 
