@@ -5,6 +5,7 @@ Use this file to define your settings for a training run, or
 to generate a synthetic image using a trained generator.
 '''
 
+from matplotlib import use
 from slicegan import model, networks, util, Circularity
 import argparse
 # Define project name
@@ -13,9 +14,20 @@ Project_name = 'NMC_exemplar_final2'
 Project_dir = 'Trained_Generators'
 # Run with False to show an image during or after training
 parser = argparse.ArgumentParser()
+
+# 0 Eveluation
+# 1 Training
 parser.add_argument('training', type=int)
+
+# 0 for no CircNet
+# 1 for CircNet WITHOUT training
+# 2 for CircNet WITH training
+parser.add_argument("use_Circ", type=int)
+
 args = parser.parse_args()
 Training = args.training
+use_Circ = args.use_Circ
+
 Project_path = util.mkdr(Project_name, Project_dir, Training)
 
 ## Data Processing
@@ -49,7 +61,7 @@ noise_type = "normal"
 
 net_params = {
 
-    "pth": util.mkdr(Project_name, Project_dir, Training),
+    "pth": Project_path,
     "Training": Training,
     "imtype": 'threephase',
 
@@ -73,36 +85,38 @@ net_params = {
 # imm = util.testCircleDetector(data_path)
 # ts = Circularity.numCircles(imm)
 
-## Create and Train CircleNet
+if use_Circ != 0:    ## Create and Train CircleNet
+    ## Create Path
+    
+    Circle_dir = 'TrainedCNet'
+    W_dir = 'weights'
+    img_dir = 'img'
 
+    Circle_path = util.mkdr(Project_name, Circle_dir, W_dir)
+    # blob_path = util.mkdr(Project_name, Circle_dir, img_dir)
+    # Test efficacy of Blob Detector on Real Image
 
-## Create Path
+    # imm = util.testCircleDetector(data_path, blob_path)
+    # ts = Circularity.numCircles(imm)
 
-Circle_dir = 'TrainedCNet'
-W_dir = 'weights'
-img_dir = 'img'
-Circle_path = util.mkdr(Project_name, Circle_dir, W_dir)
-blob_path = util.mkdr(Project_name, Circle_dir, img_dir)
-# Test efficacy of Blob Detector on Real Image
+    ## Create and Train CircleNet
 
-imm = util.testCircleDetector(data_path, blob_path)
-ts = Circularity.numCircles(imm)
+    circleNet = Circularity.init_circleNet(net_params["dk"], net_params["ds"], net_params["df"], net_params["dp"])
+    
+    if use_Circ == 1:
+        circleNet = Circularity.CircleWeights(circleNet, Circle_path, False)
 
-## Create and Train CircleNet
+    if use_Circ == 2:
+        Circularity.trainCNet(data_type, data_path, img_size, scale_factor, circleNet)
+        Circularity.CircleWeights(circleNet, Circle_path, True)
 
-circleNet = Circularity.init_circleNet(net_params["dk"], net_params["ds"], net_params["df"], net_params["dp"])
-Circularity.trainCNet(data_type, data_path, img_size, scale_factor, circleNet)
-
-Circularity.CircleWeights(circleNet, Circle_path, True)
+    
 
 ## Create GAN
-
-circleNet = Circularity.CircleWeights(circleNet, Circle_path, False)
-
 netD, netG = networks.slicegan_nets(**net_params)
 # netD, netG = networks.slicegan_nets(Project_path, Training, image_type, dk, ds, df, dp, gk, gs, gf, gp)
 
-lz_calced = model.calc_lz(img_size, net_params["gk"], net_params["gs"], net_params["gs"])
+lz_calced = model.lz_img_size_converter(net_params["gk"], net_params["gs"], net_params["gp"], img_size)
 
 # Train
 if Training:
@@ -119,7 +133,9 @@ if Training:
         "sf": scale_factor,
         "lz": lz_calced,
         "num_epochs": 1,
-        "noise_type": noise_type
+        "use_Circ": use_Circ,
+        "noise_type": noise_type,
+        "sub_images": 32
     }
 
     model.train(**train_params)

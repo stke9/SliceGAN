@@ -1,4 +1,4 @@
-from run_slicegan import dk, ds, dp, df
+from re import I
 from slicegan import preprocessing, util, Circularity
 import torch
 import torch.nn as nn
@@ -19,7 +19,7 @@ noise_distributions = {
 
 }
 
-def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_epochs, CircNet = 2, Circ_eval = True, noise_type = "normal"):
+def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_epochs, CircNet = 2, use_Circ = False, noise_type = "normal", sub_images = 32*900):
     """
     train the generator
     :param pth: path to save all files, imgs and data
@@ -47,17 +47,21 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_ep
     else:
         isotropic = False
 
+    # batch sizes
+    batch_size = 32
+    D_batch_size = 8
+    img_per_batch = 900
+    N_images = batch_size * img_per_batch
+
     print('Loading Dataset...')
-    dataset_xyz = preprocessing.batch(real_data, datatype, l, sf)
+    dataset_xyz = preprocessing.batch(real_data, datatype, l, sf, N_images)
 
     ## Constants for NNs
     matplotlib.use('Agg')
     ngpu = 1
     # num_epochs = 30
 
-    # batch sizes
-    batch_size = 32
-    D_batch_size = 8
+
     # optimiser params for G and D
     
     lrg = 0.0001
@@ -106,14 +110,22 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_ep
     gp_log = []
     Wass_log = []
 
+    if use_Circ:
+        circ_loss_log = []
+
     # gk, gs, gp = netG.params[4,5,7]
 
     print("Starting Training Loop...")
     # For each epoch
+    print(dataloaderx, len(dataloaderx))
+    print(dataloadery, len(dataloadery))
+    print(dataloaderz, len(dataloaderz))
     start = time.time()
     for epoch in range(num_epochs):
         # sample data for each direction
+        
         for i, (datax, datay, dataz) in enumerate(zip(dataloaderx, dataloadery, dataloaderz), 1):
+            # print(i)
             dataset = [datax, datay, dataz]
             ### Initialise
             ### Discriminator
@@ -158,7 +170,9 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_ep
             if i % int(critic_iters) == 0:
                 netG.zero_grad()
                 errG = 0
-                noise = torch.randn(batch_size, nz, lz, lz, lz, device=device)
+                # noise = torch.randn(batch_size, nz, lz, lz, lz, device=device)
+                noise = noise_distribution.sample((batch_size, nz, lz, lz, lz)).to(device)
+
                 fake = netG(noise)
 
                 for dim, (netD, d1, d2, d3) in enumerate(
@@ -170,16 +184,18 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_ep
                     fake_data_perm = fake.permute(0, d1, 1, d2, d3).reshape(l * batch_size, nc, l, l)
                     output = netD(fake_data_perm)
                     errG -= output.mean()
-                    if not Circ_eval:
+                    if use_Circ and dim == 0:
                         ## If dimension along x, calculate circularity_loss
-                        if dim == 0:
-                            circularity_loss = Circularity.CircularityLoss(data, fake_data_perm, CircNet)
+                        
+                        circularity_loss = Circularity.CircularityLoss(data, fake_data_perm, CircNet)
 
                         errG -= circularity_loss
+                        circ_loss_log.append(circularity_loss.item())
                         print(f"Circularity Loss for iteration {i} is {circularity_loss}")
                         # Calculate gradients for G
                 errG.backward()
                 optG.step()
+            
 
             # Output training stats & show imgs
             if i % 25 == 0:
@@ -256,6 +272,3 @@ def lz_img_size_converter(gk, gs, gp, img_size = None, lz= None, lz_to_im = Fals
             next_l = int(next_l)
 
         return next_l
-
-       
-

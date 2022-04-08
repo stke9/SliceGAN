@@ -109,11 +109,11 @@ def trainCNet(datatype, realData, l, sf, CNet):
             pred_OutR = cNet(R).view(-1)
 
             print(f"Type: {type(R)} Size: {R.size()}")
-            util.test_plotter(R, 1, im_type, cpath, True)
-            # R = R.cpu().detach().numpy()
-            # print(R)
-            # print(f"Type: {type(R)} Size: {R.shape}")
-            # cv2.imwrite("imageRR.png", R)
+            # util.test_plotter(R, 1, im_type, cpath, True)
+            R = R.cpu().detach().numpy()
+            print(R)
+            print(f"Type: {type(R)} Size: {R.shape}")
+            cv2.imwrite("imageRR.png", R)
             R_img = cv2.imread(cpath + "_slices.png")
 
             if e == 0:
