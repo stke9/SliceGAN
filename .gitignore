@@ -3,3 +3,5 @@ TrainingData/
 Trained_Generators/
 
 *.pyc
+*.tif
+*.tiff

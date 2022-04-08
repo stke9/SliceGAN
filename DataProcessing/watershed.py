@@ -1,72 +1,102 @@
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-from mpl_toolkits.axes_grid1.inset_locator import zoomed_inset_axes, mark_inset
+from mpl_toolkits.axes_grid1.inset_locator import mark_inset
 from scipy import ndimage as ndi
+from scipy.ndimage import sobel
 from skimage import morphology, color
 from skimage.filters.thresholding import threshold_otsu
-from skimage.morphology import closing, square, opening
-from skimage.segmentation import watershed, random_walker
+from skimage.morphology import closing, square
+from skimage.segmentation import watershed
 from skimage.feature import peak_local_max
-
-# Generate an initial image with two overlapping circles
 from tifffile import tifffile
 
-x, y = np.indices((80, 80))
-x1, y1, x2, y2, x3, y3, x4, y4 = 8, 28, 34, 52, 55, 30, 20, 12
-r1, r2, r3, r4 = 4, 20, 20, 6
-mask_circle1 = (x - x1) ** 2 + (y - y1) ** 2 < r1 ** 2
-mask_circle2 = (x - x2) ** 2 + (y - y2) ** 2 < r2 ** 2
-mask_circle3 = (x - x3) ** 2 + (y - y3) ** 2 < r3 ** 2
-mask_circle4 = (x - x4) ** 2 + (y - y4) ** 2 < r4 ** 2
-
-image = np.logical_or(mask_circle2, mask_circle3)
-image[mask_circle1] = 1
-image[mask_circle4] = 1
-
-file = os.path.join(os.getcwd(), '3D_data_binary.tif')
-image = np.array(tifffile.imread(file, key=0)) > 0
-threshold = closing(image > threshold_otsu(image), square(4))
+# Configuration settings
+class config:
+  c = {
+    "filename": "3D_data_binary.tif", # filename of image
+    "thr_k_size": 4,                  # threshold kernel size
+    "rm_holes_size": 12,              # threshold in pixels
+    "rm_objects_size": 24,            # threshold in pixels
+    "local_peak_max": 1,              # while finding coordinates
+    "closing_size": 3,                # size of closing algorithm
+    "h_minima": 3                     # depth of the h minima
+  }
+  @staticmethod
+  def var(name): return config.c[name]
 
 
-cleaned = morphology.remove_small_objects(morphology.remove_small_holes(threshold, 12), 24)
-distance = ndi.distance_transform_edt(cleaned)
-coords = peak_local_max(distance, min_distance=1)
+c = config() # set the config as global variable
+
+def main():
+    raw, image = openTiff(c.var('filename'))
+    distance, coords = computeDistance(image)
+    markers = computeMarkers(distance, coords)
+    labels = hmin_watershed(image, distance, markers)
+    generatePlot(raw, image, distance, labels)
 
 
-# coords = peak_local_max(distance, footprint=np.ones((3, 3)), labels=cleaned)
-mask = np.zeros(distance.shape, dtype=bool)
-mask[tuple(coords.T)] = True
-markers, _ = ndi.label(mask)
-labels = morphology.h_minima(watershed(-distance, markers, mask=cleaned, watershed_line=False), 4)
-closed = closing(labels, square(3))
+def openTiff(filename):
+    raw = np.array(tifffile.imread(os.path.join(os.getcwd(), filename), key=0)) > 0 # Open file and normalise it
+    return raw, cleanImage(raw)
+
+def cleanImage(image):
+    raw = closing(image > threshold_otsu(image), square(c.var('thr_k_size')))  # Apply closing and threshold
+    raw = morphology.remove_small_holes(raw, c.var('rm_holes_size'))           # Remove small holes
+    raw = morphology.remove_small_objects(raw, c.var('rm_objects_size'))       # Remove small objects
+    return raw #sobel(raw)                                                     # Apply sobel filter
 
 
-fig, axes = plt.subplots(ncols=3, nrows=1, figsize=(30, 10))
-ax = axes.ravel()
+def computeDistance(image):
+    distance = ndi.distance_transform_edt(image)
+    # coords = peak_local_max(distance, footprint=np.ones((3, 3)), labels=cleaned)
+    return distance, peak_local_max(distance, min_distance=c.var('local_peak_max'))
 
-for a, data in zip(ax, [cleaned, -distance, color.label2rgb(closed, cleaned, alpha=0.4, bg_label=0)]):
-    # Plot the blurred data for the full image
-    a.imshow(data, cmap=plt.cm.gray)
-    a.set_axis_off()
 
-    # Create smaller axes to show more details
-    z = a.inset_axes([50, 575, 300, 300], transform=a.transData)  # 50 to 350
-    z.set_xlim((150, 250))
-    z.set_ylim((200, 100))
-    a.indicate_inset_zoom(z, ec="red", lw=8)
-    mark_inset(a, z, loc1=1, loc2=2, fc="none", ec="red", lw=4)
+def computeMarkers(distance, coords):
+    mask = np.zeros(distance.shape, dtype=bool)
+    mask[tuple(coords.T)] = True
+    markers, _ = ndi.label(mask)
+    # if c.var('closing_size') > 0: markers = closing(markers, square(c.var('closing_size')))
+    return markers
 
-    # Show data without ticks and set style for plot border
-    z.imshow(data, origin="lower", cmap=plt.cm.gray)
-    z.get_xaxis().set_ticks([])
-    z.get_yaxis().set_ticks([])
-    for edge in ['top', 'bottom', 'left', 'right']:
-        z.spines[edge].set_linewidth(8)
-        z.spines[edge].set_color('red')
 
-fig.tight_layout()
-plt.show()
+def hmin_watershed(image, distance, markers, lines=False):
+    return morphology.h_minima(watershed(-distance, markers, mask=image, watershed_line=lines), c.var('h_minima'))
+
+
+def generatePlot(raw, image, distance, labels, tight=True):
+    closed = closing(labels, square(3))
+    fig, axes = plt.subplots(ncols=4, nrows=1, figsize=(40, 10))
+    ax = axes.ravel()
+
+    for a, data in zip(ax, [raw, image, -distance, color.label2rgb(closed, image, alpha=0.4, bg_label=0)]):
+        # Plot the data of the full image and remove axis
+        a.imshow(data, cmap=plt.cm.gray)
+        a.set_axis_off()
+
+        # Create smaller axes to show more details
+        z = a.inset_axes([50, 575, 300, 300], transform=a.transData)
+        z.set_xlim((150, 250))
+        z.set_ylim((200, 100))
+        a.indicate_inset_zoom(z, ec="red", lw=8)
+        mark_inset(a, z, loc1=1, loc2=2, fc="none", ec="red", lw=4)
+
+        # Show data without ticks and set style for plot border
+        z.imshow(data, origin="lower", cmap=plt.cm.gray)
+        z.get_xaxis().set_ticks([])
+        z.get_yaxis().set_ticks([])
+        for edge in ['top', 'bottom', 'left', 'right']:
+            z.spines[edge].set_linewidth(8)
+            z.spines[edge].set_color('red')
+
+    # Show the final plot with tight lay-out if requested
+    if tight: fig.tight_layout()
+    plt.show()
+
+if __name__ == "__main__":
+    main()
+
 
 # ax[0].imshow(cleaned, cmap=plt.cm.gray)
 # ax[1].imshow(-distance, cmap=plt.cm.gray)
