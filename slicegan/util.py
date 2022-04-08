@@ -120,12 +120,12 @@ def post_proc(img,imtype):
         pass
     # for n phase materials, seperate out the channels and take the max
     if imtype == 'twophase':
-        print(f"\nImage Shape before 2phase convert = {img.shape}\np1 = {img} \nImage p1 = {np.array(img[0][1]).shape}")
+        # print(f"\nImage Shape before 2phase convert = {img.shape}\np1 = {img} \nImage p1 = {np.array(img[0][1]).shape}")
         img_pp = np.zeros(img.shape[2:])
         p1 = np.array(img[0][0])
         p2 = np.array(img[0][1])
         img_pp[(p1 < p2)] = 1  # background, yellow
-        print(img_pp.shape)
+        # print(img_pp.shape)
         return img_pp
     if imtype == 'threephase':
         img_pp = np.zeros(img.shape[2:])
