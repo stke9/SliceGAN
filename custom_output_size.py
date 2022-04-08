@@ -84,7 +84,7 @@ netG = netG()
 netG.load_state_dict(torch.load(pth + '_Gen.pt', map_location=torch.device("cpu")))
 netG.eval()
 
-min_x, min_y, min_z = 200, 100, 50
+min_x, min_y, min_z = 64, 200, 200
 
 lz_x, lz_y, lz_z, im_x, im_y, im_z = calc_lz_dims(min_x, min_y, min_z, net_params["gk"], net_params["gs"], net_params["gp"])
 
