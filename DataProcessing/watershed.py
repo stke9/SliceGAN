@@ -3,54 +3,72 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1.inset_locator import mark_inset
 from scipy import ndimage as ndi
-from scipy.ndimage import sobel
 from skimage import morphology, color
 from skimage.filters.thresholding import threshold_otsu
 from skimage.morphology import closing, square
 from skimage.segmentation import watershed
 from skimage.feature import peak_local_max
 from tifffile import tifffile
+from tqdm import tqdm
+
 
 # Configuration settings
-class config:
-  c = {
-    "filename": "3D_data_binary.tif", # filename of image
-    "thr_k_size": 4,                  # threshold kernel size
-    "rm_holes_size": 12,              # threshold in pixels
-    "rm_objects_size": 24,            # threshold in pixels
-    "local_peak_max": 1,              # while finding coordinates
-    "closing_size": 3,                # size of closing algorithm
-    "h_minima": 3                     # depth of the h minima
-  }
-  @staticmethod
-  def var(name): return config.c[name]
+class Config:
+    c = {
+        "filename": "3D_data_gray.tif",  # filename of image
+        "thr_k_size": 3,  # threshold kernel size
+        "rm_holes_size": 24,  # threshold in pixels
+        "rm_objects_size": 12,  # threshold in pixels
+        "local_peak_max": 1,  # while finding coordinates
+        "closing_size": 3,  # size of closing algorithm
+        "h_minima": 3  # depth of the h minima
+    }
+
+    @staticmethod
+    def var(name): return Config.c[name]
 
 
-c = config() # set the config as global variable
+c = Config()  # set the config as global variable
+
 
 def main():
-    raw, image = openTiff(c.var('filename'))
-    distance, coords = computeDistance(image)
-    markers = computeMarkers(distance, coords)
-    labels = hmin_watershed(image, distance, markers)
-    generatePlot(raw, image, distance, labels)
+    processedBinary()
+    # raw, processed = openSingleTiff(c.var('filename'))
+    # distance, coords = computeDistance(processed)
+    # markers = computeMarkers(distance, coords)
+    # labels = hmin_watershed(processed, distance, markers)
+    # generatePlot(raw, processed, distance, markers, labels)
 
 
-def openTiff(filename):
-    raw = np.array(tifffile.imread(os.path.join(os.getcwd(), filename), key=0)) > 0 # Open file and normalise it
+def processedBinary(source="3D_data_gray.tif", target="3D_data_bin_processed.tif"):
+    raw = openMultiTiff(source)
+    n_slices = raw.shape[0]
+    processed = np.empty(raw.shape, dtype=np.int8)
+    for i in tqdm(range(n_slices)):
+        processed[i] = cleanImage(raw[i])
+    tifffile.imwrite(target, processed)
+
+
+def openMultiTiff(filename):
+    raw = np.array(tifffile.imread(os.path.join(os.getcwd(), filename)))  # Open file and normalise it
+    return raw
+
+
+def openSingleTiff(filename):
+    raw = np.array(tifffile.imread(os.path.join(os.getcwd(), filename), key=0))  # Open file and normalise it
     return raw, cleanImage(raw)
 
+
 def cleanImage(image):
-    raw = closing(image > threshold_otsu(image), square(c.var('thr_k_size')))  # Apply closing and threshold
+    raw = closing(image < threshold_otsu(image), square(c.var('thr_k_size')))  # Apply closing and threshold
     raw = morphology.remove_small_holes(raw, c.var('rm_holes_size'))           # Remove small holes
     raw = morphology.remove_small_objects(raw, c.var('rm_objects_size'))       # Remove small objects
-    return raw #sobel(raw)                                                     # Apply sobel filter
+    return np.invert(raw)
 
 
 def computeDistance(image):
     distance = ndi.distance_transform_edt(image)
-    # coords = peak_local_max(distance, footprint=np.ones((3, 3)), labels=cleaned)
-    return distance, peak_local_max(distance, min_distance=c.var('local_peak_max'))
+    return distance, peak_local_max(-distance, min_distance=c.var('local_peak_max'))
 
 
 def computeMarkers(distance, coords):
@@ -62,17 +80,18 @@ def computeMarkers(distance, coords):
 
 
 def hmin_watershed(image, distance, markers, lines=False):
-    return morphology.h_minima(watershed(-distance, markers, mask=image, watershed_line=lines), c.var('h_minima'))
+    return morphology.h_minima(watershed(distance, markers, mask=image, watershed_line=lines), c.var('h_minima'))
 
 
-def generatePlot(raw, image, distance, labels, tight=True):
-    closed = closing(labels, square(3))
+def generatePlot(raw, image, distance, markers, labels, tight=True):
+    closed = closing(labels, square(4))
     fig, axes = plt.subplots(ncols=4, nrows=1, figsize=(40, 10))
     ax = axes.ravel()
-
-    for a, data in zip(ax, [raw, image, -distance, color.label2rgb(closed, image, alpha=0.4, bg_label=0)]):
+    datasets = [raw, image, -distance, color.label2rgb(closed, image, alpha=0.4, bg_label=0)]
+    colours = [plt.cm.gray, plt.cm.gray, plt.cm.grey, plt.cm.rainbow]
+    for a, data, colour in zip(ax, datasets, colours):
         # Plot the data of the full image and remove axis
-        a.imshow(data, cmap=plt.cm.gray)
+        a.imshow(data, cmap=colour)
         a.set_axis_off()
 
         # Create smaller axes to show more details
@@ -94,15 +113,6 @@ def generatePlot(raw, image, distance, labels, tight=True):
     if tight: fig.tight_layout()
     plt.show()
 
+
 if __name__ == "__main__":
     main()
-
-
-# ax[0].imshow(cleaned, cmap=plt.cm.gray)
-# ax[1].imshow(-distance, cmap=plt.cm.gray)
-# ax[2].imshow(morphology.h_minima(labels, 2), cmap=plt.cm.gray)
-
-# zoom = ax[0].inset_axes([0.5, 0.5, 0.47, 0.47])
-# zoom.set_xlim((50, 250))
-# zoom.set_ylim((50, 250))
-# zoom.imshow(cleaned, origin="lower", cmap=plt.cm.gray)
