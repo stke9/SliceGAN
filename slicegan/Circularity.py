@@ -4,6 +4,7 @@ import torch.nn as nn
 import torch.backends.cudnn as cudnn
 import torch.optim as optim
 import numpy as np
+from pandas import DataFrame as df
 import time
 import matplotlib
 import cv2
@@ -40,6 +41,7 @@ def init_circleNet(dk, ds, df, dp):
 def trainCNet(datatype, realData, l, sf, CNet, project_path):
     """
         train the network to detect and count circles
+        :type project_path: object
         :param datatype: training data format e.g. tif, jpg ect
         :param realData: path to training data
         :param CNet:
@@ -50,6 +52,15 @@ def trainCNet(datatype, realData, l, sf, CNet, project_path):
 
     if len(realData) == 1:
         realData *= 3
+
+    params = cv2.SimpleBlobDetector_Params()
+
+    params.filterByArea = False
+    params.filterByConvexity = False
+    params.filterByInertia = False
+
+    params.filterByCircularity = True
+    params.minCircularity = 0.5
 
     print('Loading Circle Dataset...')
     dataset_xyz = preprocessing.batch(realData, datatype, l, sf)
@@ -89,11 +100,9 @@ def trainCNet(datatype, realData, l, sf, CNet, project_path):
 
     for e in range(numEpochs):
 
-        minAr, maxAr = 100000, 0
-
-        loss_tensor = torch.tensor([])
+        # loss_tensor = torch.tensor([])
         closs_list = []
-        loss_tensor_sum = torch.zeros(1)
+        # loss_tensor_sum = torch.zeros(1)
         for index, data_loader_tensors in enumerate(dataLoader):
             # print(rData)
 
@@ -115,7 +124,10 @@ def trainCNet(datatype, realData, l, sf, CNet, project_path):
             #     if max_area > maxAr:
             #         maxAr = max_area + 10
             # else:
-            real_OutR = numCircles(R_img)
+            detector = cv2.SimpleBlobDetector_create(params)
+
+            keypoints = detector.detect(R_img)
+            real_OutR = len(keypoints)
 
             if debug_flag:
                 print_debug(data_loader_tensor, data_loader_tensors, pred_OutR, real_OutR)
@@ -141,6 +153,16 @@ def trainCNet(datatype, realData, l, sf, CNet, project_path):
             # print('loss mean: ', loss_tensor_mean)
             cLoss.backward()
             optC.step()
+
+    cnet_weight_path = project_path + '/circleNet_weights.pt'
+    torch.save(cNet().state_dict(), cnet_weight_path)
+
+    # try:
+    #     temp_df = df(closs_list)
+    #     temp_df.to_excel(project_path, sheet_name = 'circleLoss')
+    # except:
+    #     print("Change syntax for saving sheet.")
+
 
 
 def print_debug(data_loader_tensor, data_loader_tensors, pred_OutR, real_OutR):
@@ -248,13 +270,24 @@ def CircularityLoss(imreal, imfake, CL_CNET):
     rlen, flen = 0, 0
     D = 0
 
+    params = cv2.SimpleBlobDetector_Params()
+
+    params.filterByArea = False
+    params.filterByConvexity = False
+    params.filterByInertia = False
+
+    params.filterByCircularity = True
+    params.minCircularity = 0.5
+
     for r in imreal:
         realcirc.append(CL_CNET(r))
         rlen += 1
 
     for f in imfake:
         fakecirc.append(CL_CNET(f))
-        gg = numCircles(f)
+        detector = cv2.SimpleBlobDetector_create(params)
+        kpoints = detector.detect(f)
+        gg = len(kpoints)
         print(f"Slice {f} has a difference of {CL_CNET(f) - gg} \n")
         flen += 1
 

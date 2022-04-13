@@ -20,7 +20,7 @@ noise_distributions = {
 }
 
 
-def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_epochs, CircNet, use_Circ = False, noise_type = "normal", sub_images = 32*900):
+def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_epochs, CircNet, use_Circ = 0, noise_type = "normal", sub_images = 32*900):
     """
     train the generator
     :param pth: path to save all files, imgs and data
@@ -36,6 +36,8 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_ep
     :param CircNet: Trained CircleNet
     :return:
     """
+
+    cnet_weight_path = pth + '/circleNet_weights.pt'
 
     if noise_type not in ("normal","laplace","uniform","cauchy"):
         raise ValueError("invalid noise distribution")
@@ -55,7 +57,7 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_ep
     N_images = batch_size * img_per_batch
 
     print('Loading Dataset...')
-    dataset_xyz = preprocessing.batch(real_data, datatype, l, sf, N_images)
+    dataset_xyz = preprocessing.batch(real_data, datatype, l, sf)
 
     ## Constants for NNs
     matplotlib.use('Agg')
@@ -82,6 +84,10 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_ep
     ##Dataloaders for each orientation
     device = torch.device("cuda:0" if (torch.cuda.is_available() and ngpu > 0) else "cpu")
     print(device, " will be used.\n")
+
+    if use_Circ:
+        cnet = CircNet().to(device)
+        cnet.load_state_dict(torch.load(cnet_weight_path))
 
     # D trained using different data for x, y and z directions
     dataloaderx = torch.utils.data.DataLoader(dataset_xyz[0], batch_size=batch_size,
@@ -111,7 +117,7 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_ep
     gp_log = []
     Wass_log = []
 
-    if use_Circ:
+    if use_Circ != 0:
         circ_loss_log = []
 
     # gk, gs, gp = netG.params[4,5,7]
@@ -134,7 +140,10 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_ep
             # noise = torch.randn(D_batch_size, nz, lz, lz, lz, device=device)
             noise = noise_distribution.sample((D_batch_size, nz, lz, lz, lz)).to(device)
             fake_data = netG(noise).detach()
-            
+
+            realcirc, fakecirc, diffcircL = [], [], []
+            rlen, flen = 0, 0
+
             # for each dim (d1, d2 and d3 are used as permutations to make 3D volume into a batch of 2D images)
             for dim, (netD, optimizer, data, d1, d2, d3) in enumerate(
                     zip(netDs, optDs, dataset, [2, 3, 4], [3, 2, 2], [4, 4, 3])):
@@ -144,6 +153,9 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_ep
                 netD.zero_grad()
                 ##train on real images
                 real_data = data[0].to(device)
+                for r in real_data:
+                    realcirc.append(CircNet(r))
+                    rlen += 1
                 out_real = netD(real_data).view(-1).mean()
                 ## train on fake images
                 # perform permutation + reshape to turn volume into batch of 2D images to pass to D
@@ -187,12 +199,44 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_ep
                     errG -= output.mean()
                     if use_Circ and dim == 0 and (CircNet is not None):
                         ## If dimension along x, calculate circularity_loss
-                        
-                        circularity_loss = Circularity.CircularityLoss(data, fake_data_perm, CircNet)
 
-                        errG -= circularity_loss
+                        params = cv2.SimpleBlobDetector_Params()
+
+                        params.filterByArea = False
+                        params.filterByConvexity = False
+                        params.filterByInertia = False
+
+                        params.filterByCircularity = True
+                        params.minCircularity = 0.5
+
+                        for f in fake_data_perm:
+                            fakecirc.append(CircNet(f))
+                            detector = cv2.SimpleBlobDetector_create(params)
+                            kpoints = detector.detect(f)
+                            gg = len(kpoints)
+                            print(f"Slice {f} has a difference of {CircNet(f) - gg} \n")
+                            flen += 1
+
+                        if rlen != flen:
+                            print("\n The number of real and fake slices do not match")
+                            return 0
+
+                        for i, R, F in enumerate(zip(realcirc, fakecirc)):
+                            diffcirc = ((F - R) ** 2) # 0 can also be substituted by int((R-F)**2)
+                            diffcircL.append(diffcirc)
+
+                            print(f"Slice {i} has a difference of {diffcirc} circles between real and fake \n")
+
+                        D = torch.zeros(1)
+
+                        for diff in diffcircL:
+                            D += diff
+
+                        circularity_loss = D / rlen
+
+                        errG += circularity_loss
                         circ_loss_log.append(circularity_loss.item())
-                        print(f"Circularity Loss for iteration {i} is {circularity_loss}")
+                        print(f"Circularity Loss for iteration {i} is {circularity_loss}\n Type of cLoss: {type(circularity_loss)}\n")
                         # Calculate gradients for G
                 errG.backward()
                 optG.step()

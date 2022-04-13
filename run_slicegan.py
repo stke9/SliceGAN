@@ -105,7 +105,8 @@ if use_Circ != 0:    ## Create and Train CircleNet
 
     # if reusing weights
     if use_Circ == 1:
-        circleNet = Circularity.CircleWeights(circleNet, circle_path, False)
+        Circularity.trainCNet(data_type, data_path, img_size, scale_factor, circleNet, project_path)
+        # circleNet = Circularity.CircleWeights(circleNet, circle_path, False)
 
     # If training circlenet
     if use_Circ == 2:
