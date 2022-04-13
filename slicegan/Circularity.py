@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.backends.cudnn as cudnn
 import torch.optim as optim
 import numpy as np
-# from pandas import DataFrame as df
+from pandas import DataFrame as df
 import time
 import matplotlib
 import cv2
@@ -18,11 +18,11 @@ from PIL import Image
 
 dk = [4] * 6
 ds = [2] * 6
-dp = [1,1,1,1,0]
-df = [3,64,128,256,512,1]
+dp = [1, 1, 1, 1, 0]
+df = [3, 64, 128, 256, 512, 1]
+
 
 def init_circleNet(dk, ds, df, dp):
-
     class CircleNet(nn.Module):
         def __init__(self):
             super(CircleNet, self).__init__()
@@ -37,6 +37,7 @@ def init_circleNet(dk, ds, df, dp):
             return x
 
     return CircleNet
+
 
 def trainCNet(datatype, realData, l, sf, CNet, project_path):
     """
@@ -135,10 +136,10 @@ def trainCNet(datatype, realData, l, sf, CNet, project_path):
             predR, realR = int(pred_OutR), int(real_OutR)
 
             cNet.zero_grad()
-            cLoss = (pred_OutR - real_OutR)**2  # if pred_OutR > real_OutR else 0
+            cLoss = (pred_OutR - real_OutR) ** 2  # if pred_OutR > real_OutR else 0
             closs_list.append(cLoss)
 
-            if (index % 5000==0):
+            if (index % 5000 == 0):
                 print('cLoss: ', cLoss)
                 print('Pred Out R: ', pred_OutR)
                 print(f"Epoch {e} : Slice {index} - NRC {realR} NPR {predR} Diff {predR - realR}\n")
@@ -157,12 +158,18 @@ def trainCNet(datatype, realData, l, sf, CNet, project_path):
     cnet_weight_path = project_path + '/circleNet_weights.pt'
     torch.save(cNet.state_dict(), cnet_weight_path)
 
-    # try:
-    temp_df = df(closs_list)
-    temp_df.to_csv(project_path + '/Circle_Loss.csv', encoding='utf-8', index=False)
-    # except:
-    #     print("Change syntax for saving sheet.")
+    # ccloss_list = closs_list[:, :, len(closs_list) / 20]
 
+    try:
+        temp_df = df(closs_list)
+        temp_df.to_csv(project_path + '/Circle_Loss.csv', encoding='utf-8', index=False)
+
+        numcloss = [num + 1 for num in range(len(closs_list))]
+        # cnumcloss = [cnum for cnum in range(len(ccloss_list))]
+
+        util.graph_plot([numcloss, closs_list], ['Sub-image', 'CircleNet Loss'], project_path, 'CLossGraph')
+    except:
+        print("\nChange syntax for saving sheet in the trainCNet method in Circularity.py.")
 
 
 def print_debug(data_loader_tensor, data_loader_tensors, pred_OutR, real_OutR):
@@ -198,7 +205,7 @@ def CircleWeights(cnet, WeightPath, SL=bool(True)):
         return cnet
 
 
-def numCircles(slice_i, area_find = 3, MinArea = 0, MaxArea = 100):
+def numCircles(slice_i, area_find=3, MinArea=0, MaxArea=100):
     """
     :param slice_i: slice in which number of circles is to be calculated
     :param area_find: 1-> find and return min and max area; 2->filter by area; 3-> no filter, no find;
@@ -304,4 +311,4 @@ def CircularityLoss(imreal, imfake, CL_CNET):
     for diff in diffcircL:
         D += diff
 
-    return D/rlen
+    return D / rlen
