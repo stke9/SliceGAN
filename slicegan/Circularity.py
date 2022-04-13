@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.backends.cudnn as cudnn
 import torch.optim as optim
 import numpy as np
-from pandas import DataFrame as df
+# from pandas import DataFrame as df
 import time
 import matplotlib
 import cv2
@@ -155,7 +155,7 @@ def trainCNet(datatype, realData, l, sf, CNet, project_path):
             optC.step()
 
     cnet_weight_path = project_path + '/circleNet_weights.pt'
-    torch.save(cNet().state_dict(), cnet_weight_path)
+    torch.save(cNet.state_dict(), cnet_weight_path)
 
     # try:
     #     temp_df = df(closs_list)

@@ -39,7 +39,7 @@ image_type = 'twophase'
 # greyscale. nphase can be, 'tif', 'png', 'jpg','array')
 data_type = 'tif'
 # Path to your data. One string for isotrpic, 3 for anisotropic
-data_path = ['TrainingData/3D_data_binary.tif']
+data_path = ['Examples/3D_data_binary.tif']
 
 ## Network Architectures
 # Training image size, no. channels and scale factor vs raw data
@@ -106,6 +106,7 @@ if use_Circ != 0:    ## Create and Train CircleNet
     # if reusing weights
     if use_Circ == 1:
         Circularity.trainCNet(data_type, data_path, img_size, scale_factor, circleNet, project_path)
+
         # circleNet = Circularity.CircleWeights(circleNet, circle_path, False)
 
     # If training circlenet
