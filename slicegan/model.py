@@ -220,7 +220,7 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_ep
                         if rlen != flen:
                             print("\n The number of real and fake slices do not match")
 
-                        for itt, R, F in enumerate(zip(realcirc, fakecirc)):
+                        for itt, R, F in enumerate(zip(realcirc, fakecirc), 1):
                             diffcirc = ((F - R) ** 2) # 0 can also be substituted by int((R-F)**2)
                             diffcircL.append(diffcirc)
 
