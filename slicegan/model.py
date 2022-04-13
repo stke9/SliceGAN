@@ -154,7 +154,7 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_ep
                 ##train on real images
                 real_data = data[0].to(device)
                 for r in real_data:
-                    realcirc.append(CircNet(r))
+                    realcirc.append(cnet(r))
                     rlen += 1
                 out_real = netD(real_data).view(-1).mean()
                 ## train on fake images
@@ -183,8 +183,8 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_ep
             if i % int(critic_iters) == 0:
                 netG.zero_grad()
                 errG = 0
-                # noise = torch.randn(batch_size, nz, lz, lz, lz, device=device)
-                noise = noise_distribution.sample((batch_size, nz, lz, lz, lz)).to(device)
+                noise = torch.randn(batch_size, nz, lz, lz, lz, device=device)
+                # noise = noise_distribution.sample((batch_size, nz, lz, lz, lz)).to(device)
 
                 fake = netG(noise)
 
@@ -210,22 +210,21 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_ep
                         params.minCircularity = 0.5
 
                         for f in fake_data_perm:
-                            fakecirc.append(CircNet(f))
-                            detector = cv2.SimpleBlobDetector_create(params)
-                            kpoints = detector.detect(f)
-                            gg = len(kpoints)
-                            print(f"Slice {f} has a difference of {CircNet(f) - gg} \n")
+                            fakecirc.append(cnet(f))
+                            # detector = cv2.SimpleBlobDetector_create(params)
+                            # kpoints = detector.detect(f)
+                            # gg = len(kpoints)
+                            # print(f"Slice {f} has a difference of {CircNet(f) - gg} \n")
                             flen += 1
 
                         if rlen != flen:
                             print("\n The number of real and fake slices do not match")
-                            return 0
 
-                        for i, R, F in enumerate(zip(realcirc, fakecirc)):
+                        for itt, R, F in enumerate(zip(realcirc, fakecirc)):
                             diffcirc = ((F - R) ** 2) # 0 can also be substituted by int((R-F)**2)
                             diffcircL.append(diffcirc)
 
-                            print(f"Slice {i} has a difference of {diffcirc} circles between real and fake \n")
+                            print(f"Slice {itt} has a difference of {diffcirc} circles between real and fake \n")
 
                         D = torch.zeros(1)
 
