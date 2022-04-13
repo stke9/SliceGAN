@@ -158,8 +158,8 @@ def trainCNet(datatype, realData, l, sf, CNet, project_path):
     torch.save(cNet.state_dict(), cnet_weight_path)
 
     # try:
-    #     temp_df = df(closs_list)
-    #     temp_df.to_excel(project_path, sheet_name = 'circleLoss')
+    temp_df = df(closs_list)
+    temp_df.to_csv(project_path + '/Circle_Loss.csv', encoding='utf-8', index=False)
     # except:
     #     print("Change syntax for saving sheet.")
 
