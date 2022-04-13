@@ -4,14 +4,8 @@ import torch.nn as nn
 import torch.backends.cudnn as cudnn
 import torch.optim as optim
 import numpy as np
-import time
-import matplotlib
 import cv2
 import torch.nn.functional as F
-import pickle
-import math
-import scipy.misc
-from PIL import Image
 
 from cv2 import SimpleBlobDetector
 

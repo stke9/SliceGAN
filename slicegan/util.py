@@ -258,8 +258,3 @@ def testCircleDetector(pathy, p2):
     imgf = cv2.imread(p2 + "_slices.png")
 
     return imgf
-
-
-
-
-

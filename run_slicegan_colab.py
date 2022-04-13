@@ -8,14 +8,11 @@ to generate a synthetic image using a trained generator.
 from matplotlib import use
 from slicegan import model, networks, util, Circularity
 import argparse
-# Define project name
-Project_name = 'NMC_exemplar_final2'
-# Specify project folder.
-Project_dir = 'Trained_Generators'
+
 # Run with False to show an image during or after training
 parser = argparse.ArgumentParser()
 
-# 0 Eveluation
+# 0 Evaluation
 # 1 Training
 parser.add_argument('training', type=int)
 
@@ -23,10 +20,17 @@ parser.add_argument('training', type=int)
 # 1 for CircNet WITHOUT training
 # 2 for CircNet WITH training
 parser.add_argument("use_Circ", type=int)
+parser.add_argument("noise_type", type=str)
 
 args = parser.parse_args()
 Training = args.training
 use_Circ = args.use_Circ
+noise_type = args.noise_type
+
+# Define project name
+Project_name = f'{noise_type}_noise'
+# Specify project folder.
+Project_dir = 'drive/MyDrive/Deep Learning/sliceGAN/Coding/Trained_Generators'
 
 Project_path = util.mkdr(Project_name, Project_dir, Training)
 
@@ -38,7 +42,7 @@ image_type = 'twophase'
 # greyscale. nphase can be, 'tif', 'png', 'jpg','array')
 data_type = 'tif'
 # Path to your data. One string for isotrpic, 3 for anisotropic
-data_path = ['TrainingData/3D_data_binary.tif']
+data_path = ['drive/MyDrive/Deep Learning/sliceGAN/Coding/data/3D_data_bin_processed.tif']
 
 ## Network Architectures
 # Training image size, no. channels and scale factor vs raw data
@@ -49,7 +53,7 @@ z_channels = 16
 lays = 6
 
 # Type of noise distribution
-noise_type = "normal"
+# noise_type = "normal"
 # kernals for each layer
 # dk, gk = [4]*lays, [4]*lays
 # # strides
@@ -132,7 +136,7 @@ if Training:
         "nz": z_channels,
         "sf": scale_factor,
         "lz": lz_calced,
-        "num_epochs": 1,
+        "num_epochs": 10,
         "use_Circ": use_Circ,
         "noise_type": noise_type
     }

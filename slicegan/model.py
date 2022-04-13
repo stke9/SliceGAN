@@ -15,11 +15,12 @@ noise_distributions = {
     "normal" : torch.distributions.normal.Normal(0,1),
     "laplace" : torch.distributions.laplace.Laplace(0,1),
     "uniform" : torch.distributions.uniform.Uniform(-1,1),
-    "cauchy": torch.distributions.cauchy.Cauchy(0,1)
+    "cauchy": torch.distributions.cauchy.Cauchy(0,1),
+    "exponential": torch.distributions.exponential.Exponential(1)
 
 }
 
-def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_epochs, CircNet = 2, use_Circ = False, noise_type = "normal", sub_images = 32*900):
+def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_epochs, CircNet = 2, use_Circ = False, noise_type = "normal"):
     """
     train the generator
     :param pth: path to save all files, imgs and data
@@ -35,11 +36,11 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_ep
     :param CircNet: Trained CircleNet
     :return:
     """
-
-    if noise_type not in ("normal","laplace","uniform","cauchy"):
-        raise ValueError("invalid noise distribution")
-    else:
+        
+    try:
         noise_distribution = noise_distributions[noise_type]
+    except:
+        raise ValueError("invalid noise distribution")
 
     if len(real_data) == 1:
         real_data *= 3
@@ -125,7 +126,7 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_ep
         # sample data for each direction
         
         for i, (datax, datay, dataz) in enumerate(zip(dataloaderx, dataloadery, dataloaderz), 1):
-            # print(i)
+            print(i)
             dataset = [datax, datay, dataz]
             ### Initialise
             ### Discriminator

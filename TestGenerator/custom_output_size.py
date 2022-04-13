@@ -50,39 +50,41 @@ def show_random_slices(volume):
         ax.set_title(title)
         fig.savefig(title)
 
-img_channels = 2
-lays = 6
-Training = False
-Project_name = '3D_binary_exemplar_final'
-Project_dir = 'Trained_Generators'
-z_channels = 16
+def load_binary_generator(proj_dir, proj_name):
+    img_channels = 2
+    lays = 6
+    Training = False
+    z_channels = 16
 
-pth = util.mkdr(Project_name, Project_dir, Training)
-    
-net_params = {
+    pth = util.mkdr(proj_dir, proj_name, Training)
+        
+    net_params = {
 
-    "pth": pth,
-    "Training": Training,
-    "imtype": 'twophase',
+        "pth": pth,
+        "Training": Training,
+        "imtype": 'twophase',
 
-    "dk" : [4]*lays,
-    "gk" : [4]*lays,
+        "dk" : [4]*lays,
+        "gk" : [4]*lays,
 
-    "ds": [2]*lays,
-    "gs": [2]*lays,
+        "ds": [2]*lays,
+        "gs": [2]*lays,
 
-    "df": [img_channels,64,128,256,512,1],
-    "gf": [z_channels,512,256,128,64,img_channels],
+        "df": [img_channels,64,128,256,512,1],
+        "gf": [z_channels,512,256,128,64,img_channels],
 
-    "dp": [1,1,1,1,0],
-    "gp": [2,2,2,2,3],
+        "dp": [1,1,1,1,0],
+        "gp": [2,2,2,2,3],
 
-}
+    }
 
-netD, netG = networks.slicegan_nets(**net_params)
-netG = netG()
-netG.load_state_dict(torch.load(pth + '_Gen.pt', map_location=torch.device("cpu")))
-netG.eval()
+    _, netG = networks.slicegan_nets(**net_params)
+    netG = netG()
+    netG.load_state_dict(torch.load(pth + '_Gen.pt', map_location=torch.device("cpu")))
+    netG.eval()
+
+Project_dir = 'Trained_Generators/Noise_models'
+Project_name = 'cauchy_noise'
 
 min_x, min_y, min_z = 64, 200, 200
 
