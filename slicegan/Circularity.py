@@ -10,10 +10,10 @@ import cv2
 import torch.nn.functional as F
 import pickle
 import math
-import scipy.misc
+# import scipy.misc
 from PIL import Image
 
-from cv2 import SimpleBlobDetector
+# from cv2 import SimpleBlobDetector
 
 dk = [4] * 6
 ds = [2] * 6
@@ -37,7 +37,7 @@ def init_circleNet(dk, ds, df, dp):
 
     return CircleNet
 
-def trainCNet(datatype, realData, l, sf, CNet):
+def trainCNet(datatype, realData, l, sf, CNet, project_path):
     """
         train the network to detect and count circles
         :param datatype: training data format e.g. tif, jpg ect
@@ -51,13 +51,6 @@ def trainCNet(datatype, realData, l, sf, CNet):
     if len(realData) == 1:
         realData *= 3
 
-    P_name = 'NMC_exemplar_final'
-    C_dir = 'TrainedCNet'
-    im_dir = 'weights'
-
-    im_type = 'twophase'
-    cpath = util.mkdr(P_name, C_dir, im_dir)
-
     print('Loading Circle Dataset...')
     dataset_xyz = preprocessing.batch(realData, datatype, l, sf)
     # print(type(dataset_xyz[0]))
@@ -65,7 +58,7 @@ def trainCNet(datatype, realData, l, sf, CNet):
     ## Constants for NNs
     # matplotlib.use('Agg')
     ngpu = 1
-    numEpochs = 30
+    numEpochs = 1
 
     # batch sizes
     batch_size = 1  # CHANGE BACK TO 8
@@ -76,6 +69,7 @@ def trainCNet(datatype, realData, l, sf, CNet):
     circle_dim = 0
     cudnn.benchmark = True
     workers = 0
+    debug_flag = False
 
     device = torch.device("cuda:0" if (torch.cuda.is_available() and ngpu > 0) else "cpu")
     print(device, " will be used.\n")
@@ -90,7 +84,6 @@ def trainCNet(datatype, realData, l, sf, CNet):
     if ('cuda' in str(device)) and (ngpu > 1):
         cNet = nn.DataParallel(cNet, list(range(ngpu)))
     optC = optim.Adam(cNet.parameters(), lr=lrc, betas=(Beta1, Beta2))
-    cNet.zero_grad()
 
     print("Starting CNet Training...")
 
@@ -98,54 +91,67 @@ def trainCNet(datatype, realData, l, sf, CNet):
 
         minAr, maxAr = 100000, 0
 
-        iterc = 0
-        LList = []
-
-        for R in dataLoader:
+        loss_tensor = torch.tensor([])
+        closs_list = []
+        loss_tensor_sum = torch.zeros(1)
+        for index, data_loader_tensors in enumerate(dataLoader):
             # print(rData)
-            print(f"\n {len(R)}")
 
-            R = R[0].to(device)
-            pred_OutR = cNet(R).view(-1)
+            data_loader_tensor = data_loader_tensors[0].to(device)
+            pred_OutR = cNet(data_loader_tensor).view(-1)
 
-            print(f"Type: {type(R)} Size: {R.size()}")
-            util.test_plotter(R, 1, im_type, cpath, True)
-            # R = R.cpu().detach().numpy()
-            # print(R)
-            # print(f"Type: {type(R)} Size: {R.shape}")
-            # cv2.imwrite("imageRR.png", R)
-            R_img = cv2.imread(cpath + "_slices.png")
+            util.test_plotter(data_loader_tensor, 1, 'twophase', project_path, True)
+            # data_loader_tensor = data_loader_tensor.cpu().detach().numpy()
+            # print(data_loader_tensor)
+            # print(f"Type: {type(data_loader_tensor)} Size: {data_loader_tensor.shape}")
+            # cv2.imwrite(project_path + "/slices_cnet.png", data_loader_tensor)
+            R_img = cv2.imread(project_path + "_slices.png")
 
-            if e == 0:
-                real_OutR, min_area, max_area = numCircles(R_img, 1)
+            # if e == 0:
+            #     real_OutR, min_area, max_area = numCircles(R_img, 1)
+            #
+            #     if min_area < minAr:
+            #         minAr = min_area - 10
+            #     if max_area > maxAr:
+            #         maxAr = max_area + 10
+            # else:
+            real_OutR = numCircles(R_img)
 
-                if min_area < minAr:
-                    minAr = min_area - 10
-                if max_area > maxAr:
-                    maxAr = max_area + 10
-            else:
-                real_OutR = numCircles(R_img, 2, minAr, maxAr)
+            if debug_flag:
+                print_debug(data_loader_tensor, data_loader_tensors, pred_OutR, real_OutR)
 
             predR, realR = int(pred_OutR), int(real_OutR)
 
-            iterc += 1
+            cNet.zero_grad()
+            cLoss = (pred_OutR - real_OutR)**2  # if pred_OutR > real_OutR else 0
+            closs_list.append(cLoss)
 
-            print(f"Epoch {e} : Slice {iterc} - NRC {realR} NPR {predR} Diff {predR - realR}\n")
+            if (index % 5000==0):
+                print('cLoss: ', cLoss)
+                print('Pred Out R: ', pred_OutR)
+                print(f"Epoch {e} : Slice {index} - NRC {realR} NPR {predR} Diff {predR - realR}\n")
+            # torch.cat((loss_tensor, torch.tensor([cLoss])))
 
-            cLoss = (pred_OutR - real_OutR)**2 if pred_OutR > real_OutR else 0
-            LList.append(cLoss)
+            # for loss_i in closs_list:
+            #     loss_tensor_sum += loss_i
+            #
+            # fin_e_loss = loss_tensor_sum / index
+            #
+            # loss_tensor_mean = torch.mean(loss_tensor)
+            # print('loss mean: ', loss_tensor_mean)
+            cLoss.backward()
+            optC.step()
 
-        if e == 0:
-            print(f"\n\n Circle Area Thresholds: minArea = {minAr} & maxArea = {maxAr} \n\n")
 
-        lsum = 0
-        for ll in LList:
-            lsum += ll
+def print_debug(data_loader_tensor, data_loader_tensors, pred_OutR, real_OutR):
+    print('Predicted out R', pred_OutR)
+    print(f"Type: {type(data_loader_tensor)} Size: {data_loader_tensor.size()}")
+    print(f"Size DataLoader Tensor:\n {len(data_loader_tensors)}")
+    print('Pred_outR_type', type(pred_OutR))
+    print('Pred_outR', pred_OutR)
 
-        CLoss = lsum/iterc
-
-        CLoss.backward()
-        optC.step()
+    print(type(real_OutR))
+    print(real_OutR)
 
 
 def CircleWeights(cnet, WeightPath, SL=bool(True)):
@@ -156,10 +162,17 @@ def CircleWeights(cnet, WeightPath, SL=bool(True)):
     :return:
     """
 
+    cnet_weight_path = WeightPath + '/circleNet_weights.pt'
     if SL:
-        torch.save(cnet.state_dict(), WeightPath)
+        print(WeightPath)
+        for param_tensor in cnet().state_dict():
+            print(param_tensor, "\t", cnet().state_dict()[param_tensor].size())
+        torch.save(cnet().state_dict(), cnet_weight_path)
     else:
-        cnet.load_state_dict(torch.load(WeightPath))
+
+        cnet().load_state_dict(torch.load(cnet_weight_path))
+        # for param_tensor in cnet().state_dict():
+        #     print(param_tensor, "\t", cnet().state_dict()[param_tensor])
         return cnet
 
 
@@ -174,6 +187,7 @@ def numCircles(slice_i, area_find = 3, MinArea = 0, MaxArea = 100):
     params = cv2.SimpleBlobDetector_Params()
     sizepoints = []
 
+    params.filterByArea = False
     params.filterByConvexity = False
     params.filterByInertia = False
 
@@ -210,22 +224,28 @@ def numCircles(slice_i, area_find = 3, MinArea = 0, MaxArea = 100):
         return len(keypoints)
 
     else:
+
         detector = cv2.SimpleBlobDetector_create(params)
+
         keypoints = detector.detect(slice_i)
-        print(f"Number of detected circles is: {len(keypoints)}\nPress any key on the plot to continue.\n")
 
-        im_with_keypoints = cv2.drawKeypoints(slice_i, keypoints, np.array([]), (0, 0, 255),
-                                              cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+        if area_find == 4:
+            print(f"Number of detected circles is: {len(keypoints)}\nPress any key on the plot to continue.\n")
 
-        cv2.imshow("Keypoints", im_with_keypoints)
-        cv2.waitKey(0)
+            im_with_keypoints = cv2.drawKeypoints(slice_i, keypoints, np.array([]), (0, 0, 255),
 
-        return len(keypoints)
+                                                  cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+
+            cv2.imshow("Keypoints", im_with_keypoints)
+
+            cv2.waitKey(0)
+
+    return len(keypoints)
 
 
 def CircularityLoss(imreal, imfake, CL_CNET):
-    realcirc, fakecirc, diffcircL = []
-    rlen, flen = 0
+    realcirc, fakecirc, diffcircL = [], [], []
+    rlen, flen = 0, 0
     D = 0
 
     for r in imreal:

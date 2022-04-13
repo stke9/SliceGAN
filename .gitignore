@@ -1,7 +1,5 @@
 local_stuff/
-TrainingData/
+TrainingData/GFRP_Static_600N/
 Trained_Generators/
 
 *.pyc
-*.tif
-*.tiff

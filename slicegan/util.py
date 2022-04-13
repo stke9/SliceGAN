@@ -11,7 +11,7 @@ import tifffile
 import sys
 ## Training Utils
 
-def mkdr(proj,proj_dir,Training):
+def mkdr(proj_dir, proj, Training):
     """
     When training, creates a new project directory or overwrites an existing directory according to user input. When testing, returns the full project path
     :param proj: project name
@@ -23,20 +23,20 @@ def mkdr(proj,proj_dir,Training):
     if Training:
         try:
             os.mkdir(pth)
-            return pth + '/' + proj
+            return pth
         except FileExistsError:
             print('Directory', pth, 'already exists. Enter new project name or hit enter to overwrite')
             new = input()
             if new == '':
-                return pth + '/' + proj
+                return pth
             else:
-                pth = mkdr(new, proj_dir, Training)
+                pth = mkdr(proj_dir, new, Training)
                 return pth
         except FileNotFoundError:
             print('The specifified project directory ' + proj_dir + ' does not exist. Please change to a directory that does exist and again')
             sys.exit()
     else:
-        return pth + '/' + proj
+        return pth
 
 
 def weights_init(m):
@@ -120,12 +120,12 @@ def post_proc(img,imtype):
         pass
     # for n phase materials, seperate out the channels and take the max
     if imtype == 'twophase':
-        print(f"\nImage Shape before 2phase convert = {img.shape}\np1 = {img} \nImage p1 = {np.array(img[0][1]).shape}")
+        # print(f"\nImage Shape before 2phase convert = {img.shape}\np1 = {img} \nImage p1 = {np.array(img[0][1]).shape}")
         img_pp = np.zeros(img.shape[2:])
         p1 = np.array(img[0][0])
         p2 = np.array(img[0][1])
         img_pp[(p1 < p2)] = 1  # background, yellow
-        print(img_pp.shape)
+        # print(img_pp.shape)
         return img_pp
     if imtype == 'threephase':
         img_pp = np.zeros(img.shape[2:])
@@ -153,13 +153,14 @@ def test_plotter(img,slcs,imtype,pth, circ=False):
 
     img = post_proc(img,imtype)
 
-    if circ == True:
-        fig, ax = plt.subplots(slcs)
-        # for j in range(slcs):
-        #     axs[j, 0].imshow(img[j, :, :])
-        ax.imshow(img)
-        plt.savefig(pth + '_slices.png')
-        plt.close()
+    if circ:
+        # print('(if circl == true )saving png in test_plotter...')
+        # fig, ax = plt.subplots(slcs)
+        # # for j in range(slcs):
+        # #     axs[j, 0].imshow(img[j, :, :])
+        # plt.savefig(pth + '_slices.png')
+        # plt.close()
+        plt.imsave(pth +'_slices.png', img)
     else:
 
         fig, axs = plt.subplots(slcs, 3)

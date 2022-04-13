@@ -27,7 +27,7 @@ args = parser.parse_args()
 
 Training = args.training
 # Training = True
-Project_path = util.mkdr(Project_name, Project_dir, Training)
+Project_path = util.mkdr(Project_dir, Project_name, Training)
 
 ## Data Processing
 # Define image  type (colour, grayscale, three-phase or two-phase.
@@ -50,7 +50,7 @@ lays = 6
 
 net_params = {
 
-    "pth": util.mkdr(Project_name, Project_dir, Training),
+    "pth": util.mkdr(Project_dir, Project_name, Training),
     "Training": Training,
     "imtype": image_type,
 

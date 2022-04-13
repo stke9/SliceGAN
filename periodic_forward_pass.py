@@ -107,7 +107,7 @@ Project_name = '3D_binary_exemplar_final'
 Project_dir = 'Trained_Generators'
 z_channels = 16
 
-pth = util.mkdr(Project_name, Project_dir, Training)
+pth = util.mkdr(Project_dir, Project_name, Training)
 
 net_params = {
 
