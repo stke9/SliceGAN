@@ -182,7 +182,7 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_ep
             ### Generator Training
             if i % int(critic_iters) == 0:
                 netG.zero_grad()
-                errG = 0
+                errG = torch.zeros(1)
                 noise = torch.randn(batch_size, nz, lz, lz, lz, device=device)
                 # noise = noise_distribution.sample((batch_size, nz, lz, lz, lz)).to(device)
 
@@ -220,7 +220,7 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_ep
                         if rlen != flen:
                             print("\n The number of real and fake slices do not match")
 
-                        for itt, R, F in enumerate(zip(realcirc, fakecirc), 1):
+                        for itt, (R, F) in enumerate(zip(realcirc, fakecirc), 1):
                             diffcirc = ((F - R) ** 2) # 0 can also be substituted by int((R-F)**2)
                             diffcircL.append(diffcirc)
 
@@ -229,7 +229,7 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_ep
                         D = torch.zeros(1)
 
                         for diff in diffcircL:
-                            D += diff
+                            D += diff.view(-1)
 
                         circularity_loss = D / rlen
 
