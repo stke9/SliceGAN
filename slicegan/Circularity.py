@@ -63,7 +63,7 @@ def trainCNet(datatype, realData, l, sf, CNet, project_path):
     ## Constants for NNs
     # matplotlib.use('Agg')
     ngpu = 1
-    numEpochs = 1
+    numEpochs = 10
 
     # batch sizes
     batch_size = 1  # CHANGE BACK TO 8
