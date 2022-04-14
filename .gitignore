@@ -3,3 +3,4 @@ TrainingData/
 Trained_Generators/
 
 *.pyc
+noise-images
