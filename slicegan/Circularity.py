@@ -160,7 +160,7 @@ def trainCNet(datatype, realData, l, sf, CNet, project_path):
 
     # ccloss_list = closs_list[:, :, len(closs_list) / 20]
 
-    np.save('closs.npy', np.array(closs_list))
+    # np.save('closs.npy', np.array(closs_list))
     try:
         temp_df = df(closs_list)
         temp_df.to_csv(project_path + '/Circle_Loss.csv', encoding='utf-8', index=False)

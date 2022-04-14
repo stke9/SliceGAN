@@ -23,20 +23,20 @@ def mkdr(proj_dir, proj, Training):
     if Training:
         try:
             os.mkdir(pth)
-            return pth
+            return pth + '/'
         except FileExistsError:
             print('Directory', pth, 'already exists. Enter new project name or hit enter to overwrite')
             new = input()
             if new == '':
-                return pth
+                return pth + '/'
             else:
                 pth = mkdr(proj_dir, new, Training)
-                return pth
+                return pth + '/'
         except FileNotFoundError:
             print('The specifified project directory ' + proj_dir + ' does not exist. Please change to a directory that does exist and again')
             sys.exit()
     else:
-        return pth
+        return pth + '/'
 
 
 def weights_init(m):
@@ -192,14 +192,15 @@ def graph_plot(data,labels,pth,name):
     :return:
     """
 
-    for datum,lbl in zip(data,labels):
-        plt.plot(datum, label = lbl)
+    for datum, lbl in zip(data, labels):
+        plt.plot(datum, label=lbl)
+
     plt.legend()
     plt.savefig(pth + '_' + name)
     plt.close()
 
 
-def test_img(pth, imtype, netG, nz = 64, lf = 4, periodic=False):
+def test_img(pth, imtype, netG, nz = 64, lf = 4, periodic=False, noise_type=None):
     """
     saves a test volume for a trained or in progress of training generator
     :param pth: where to save image and also where to find the generator
@@ -259,8 +260,5 @@ def testCircleDetector(pathy, p2):
     imgf = cv2.imread(p2 + "_slices.png")
 
     return imgf
-
-
-
 
 

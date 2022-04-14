@@ -1,4 +1,7 @@
 from re import I
+
+import numpy as np
+
 from slicegan import preprocessing, util, Circularity
 import torch
 import torch.nn as nn
@@ -20,7 +23,7 @@ noise_distributions = {
 }
 
 
-def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_epochs, CircNet, use_Circ = 0, noise_type = "normal", sub_images = 32*900):
+def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_epochs, CircNet, use_Circ = 0, noise_type = "normal", sub_images = 32*900, beta1=0, beta2=0.9):
     """
     train the generator
     :param pth: path to save all files, imgs and data
@@ -34,11 +37,15 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_ep
     :param nz: latent vector size
     :param sf: scale factor for training data
     :param CircNet: Trained CircleNet
+    :param beta1: beta1 for Adam optimizer
+    :param beta2: beta2 for Adam optimizer
     :return:
     """
-
     cnet_weight_path = pth + '/circleNet_weights.pt'
 
+    print(pth)
+    print('beta1: ', beta1)
+    print('beta2', beta2)
     if noise_type not in ("normal","laplace","uniform","cauchy"):
         raise ValueError("invalid noise distribution")
     else:
@@ -71,8 +78,6 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_ep
     lrg = 0.0001
     lrd = 0.0001
     # change values of beta1 between 0.1-0.9, beta2 0.9-0.99 and calc evals?
-    beta1 = 0
-    beta2 = 0.9
     Lambda = 10
     critic_iters = 5
     cudnn.benchmark = True
@@ -87,7 +92,7 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_ep
     print(device, " will be used.\n")
 
     if use_Circ:
-        cnet = CircNet().to(device)
+        cnet = CircNet.to(device)
         cnet.load_state_dict(torch.load(cnet_weight_path))
 
     # D trained using different data for x, y and z directions
@@ -131,9 +136,7 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_ep
     start = time.time()
     for epoch in range(num_epochs):
         # sample data for each direction
-        
         for i, (datax, datay, dataz) in enumerate(zip(dataloaderx, dataloadery, dataloaderz), 1):
-            # print(i)
             dataset = [datax, datay, dataz]
             ### Initialise
             ### Discriminator
@@ -200,6 +203,7 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_ep
                     errG -= output.mean()
                     if use_Circ and dim == 0 and (CircNet is not None):
                         ## If dimension along x, calculate circularity_loss
+                        # circularity_loss = Circularity.CircularityLoss(data, fake_data_perm, CircNet)
 
                         params = cv2.SimpleBlobDetector_Params()
 
@@ -225,7 +229,7 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_ep
                             diffcirc = ((F - R) ** 2) # 0 can also be substituted by int((R-F)**2)
                             diffcircL.append(diffcirc)
 
-                            print(f"Slice {itt} has a difference of {diffcirc} circles between real and fake \n")
+                            #print(f"Slice {itt} has a difference of {diffcirc} circles between real and fake \n")
 
                         D = torch.zeros(1).to(device)
 
@@ -240,7 +244,6 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_ep
                         # Calculate gradients for G
                 errG.backward()
                 optG.step()
-            
 
             # Output training stats & show imgs
             if i % 25 == 0:
@@ -262,7 +265,12 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_ep
                     util.graph_plot([disc_real_log, disc_fake_log], ['real', 'perp'], pth, 'LossGraph')
                     util.graph_plot([Wass_log], ['Wass Distance'], pth, 'WassGraph')
                     util.graph_plot([gp_log], ['Gradient Penalty'], pth, 'GpGraph')
-                
+                    # store logs
+                    np.save(pth + '_disc_real_log.npy', disc_real_log)
+                    np.save(pth + '_disc_fake_log.npy', disc_fake_log)
+                    np.save(pth + '_wass_log.npy', Wass_log)
+                    np.save(pth + '_gp_log.npy', gp_log)
+
                 # Put model into training mode
                 netG.train()
 
