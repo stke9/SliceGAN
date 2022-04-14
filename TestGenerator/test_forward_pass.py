@@ -113,6 +113,7 @@ def test_binary_generator(proj_dir, proj_name, min_xyz, noise_type = "normal"):
 
     noise_dist = model.noise_distributions[noise_type]
     noise = noise_dist.sample((1, z_channels, lz_x, lz_y, lz_z))
+    print(noise.size())
     # noise = torch.randn(1, z_channels, lz_x, lz_y, lz_z)
 
     # volume = netG(noise)[0,0,:,:,:].cpu().detach().numpy()

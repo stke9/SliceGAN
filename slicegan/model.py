@@ -11,6 +11,9 @@ import torch.nn.functional as F
 import pickle
 from cv2 import SimpleBlobDetector
 
+# Noise distributions that can be used as seeds for the generator
+# Feel free to add more stuff here !
+
 noise_distributions = {
     "normal" : torch.distributions.normal.Normal(0,1),
     "laplace" : torch.distributions.laplace.Laplace(0,1),

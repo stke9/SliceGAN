@@ -8,7 +8,7 @@ proj_dir = 'Trained_Generators/Noise_models'
 noises = ["normal", "laplace", "uniform", "cauchy", "exponential"]
 
 # Lower bound of dimension of generated volume
-min_xyz = (70, 70, 70)
+min_xyz = (60, 60, 60)
 
 # If True, run all possible noise combinations
 # If False, run one particular combination
@@ -24,8 +24,9 @@ if run_all_combos:
             title = f"{n1.upper()} GAN - {n2.upper()} NOISE"
             show_random_slices(bin_volume, plot_file_name, title)
 else:
-    proj_name = 'normal_noise'
+    proj_name = 'cauchy_noise'
     bin_volume = test_binary_generator(proj_dir, proj_name, min_xyz, noise_type="cauchy")
+    print(bin_volume.shape)
     plot_file_name = "test_plot.jpg"
     title = "test_title"
     show_random_slices(bin_volume, plot_file_name, title)
