@@ -223,8 +223,8 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_ep
                             # print(f"Slice {f} has a difference of {CircNet(f) - gg} \n")
                             flen += 1
 
-                        if rlen != flen:
-                            print("\n The number of real and fake slices do not match")
+                        # if rlen != flen:
+                            # print("\n The number of real and fake slices do not match")
 
                         for itt, (R, F) in enumerate(zip(realcirc, fakecirc), 1):
                             diffcirc = ((F - R) ** 2) # 0 can also be substituted by int((R-F)**2)
@@ -241,7 +241,7 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_ep
 
                         errG += circularity_loss
                         circ_loss_log.append(circularity_loss.item())
-                        print(f"Circularity Loss for iteration {i} is {circularity_loss}\n Type of cLoss: {type(circularity_loss)}\n")
+                        # print(f"Circularity Loss for iteration {i} is {circularity_loss}\n Type of cLoss: {type(circularity_loss)}\n")
                         # Calculate gradients for G
                 errG.backward()
                 optG.step()
