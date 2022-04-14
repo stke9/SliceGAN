@@ -6,3 +6,4 @@ Trained_Generators/
 Examples/
 Examples/3D_data_binary.tif
 *.pyc
+noise-images

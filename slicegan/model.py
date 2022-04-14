@@ -1,5 +1,4 @@
 import numpy as np
-
 from slicegan import preprocessing, util, Circularity
 import torch
 import torch.nn as nn
@@ -9,11 +8,15 @@ import time
 import matplotlib
 import cv2
 
+# Noise distributions that can be used as seeds for the generator
+# Feel free to add more stuff here !
+
 noise_distributions = {
     "normal" : torch.distributions.normal.Normal(0,1),
     "laplace" : torch.distributions.laplace.Laplace(0,1),
     "uniform" : torch.distributions.uniform.Uniform(-1,1),
-    "cauchy": torch.distributions.cauchy.Cauchy(0,1)
+    "cauchy": torch.distributions.cauchy.Cauchy(0,1),
+    "exponential": torch.distributions.exponential.Exponential(1)
 
 }
 
@@ -41,10 +44,11 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_ep
     print(pth)
     print('beta1: ', beta1)
     print('beta2', beta2)
-    if noise_type not in ("normal","laplace","uniform","cauchy"):
-        raise ValueError("invalid noise distribution")
-    else:
+        
+    try:
         noise_distribution = noise_distributions[noise_type]
+    except:
+        raise ValueError("invalid noise distribution")
 
     if len(real_data) == 1:
         real_data *= 3
@@ -60,7 +64,7 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_ep
     N_images = batch_size * img_per_batch
 
     print('Loading Dataset...')
-    dataset_xyz = preprocessing.batch(real_data, datatype, l, sf)
+    dataset_xyz = preprocessing.batch(real_data, datatype, l, sf, N_images)
 
     ## Constants for NNs
     matplotlib.use('Agg')
@@ -131,7 +135,9 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_ep
     start = time.time()
     for epoch in range(num_epochs):
         # sample data for each direction
+        
         for i, (datax, datay, dataz) in enumerate(zip(dataloaderx, dataloadery, dataloaderz), 1):
+            print(i)
             dataset = [datax, datay, dataz]
             ### Initialise
             ### Discriminator
@@ -182,8 +188,8 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_ep
             if i % int(critic_iters) == 0:
                 netG.zero_grad()
                 errG = torch.zeros(1).to(device)
-                noise = torch.randn(batch_size, nz, lz, lz, lz, device=device)
-                # noise = noise_distribution.sample((batch_size, nz, lz, lz, lz)).to(device)
+                # noise = torch.randn(batch_size, nz, lz, lz, lz, device=device)
+                noise = noise_distribution.sample((batch_size, nz, lz, lz, lz)).to(device)
 
                 fake = netG(noise)
 
@@ -239,6 +245,7 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_ep
                         # Calculate gradients for G
                 errG.backward()
                 optG.step()
+            
 
             # Output training stats & show imgs
             if i % 25 == 0:

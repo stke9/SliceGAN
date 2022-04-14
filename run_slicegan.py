@@ -19,6 +19,11 @@ Project_dir = 'Trained_Generators'
 parser = argparse.ArgumentParser()
 
 # 0 Eveluation
+
+# Run with False to show an image during or after training
+parser = argparse.ArgumentParser()
+
+# 0 Evaluation
 # 1 Training
 parser.add_argument('training', type=int)
 
@@ -26,6 +31,7 @@ parser.add_argument('training', type=int)
 # 1 for CircNet WITHOUT training
 # 2 for CircNet WITH training
 parser.add_argument("use_Circ", type=int)
+parser.add_argument("noise_type", type=str, nargs="?", default="normal")
 
 args = parser.parse_args()
 Training = args.training
