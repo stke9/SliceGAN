@@ -51,14 +51,7 @@ lays = 6
 
 # Type of noise distribution
 noise_type = "normal"
-# kernals for each layer
-# dk, gk = [4]*lays, [4]*lays
-# # strides
-# ds, gs = [2]*lays, [2]*lays
-# # no. filters
-# df, gf = [img_channels,64,128,256,512,1], [z_channels,512,256,128,64,img_channels]
-# # paddings
-# dp, gp = [1,1,1,1,0],[2,2,2,2,3]
+
 
 beta1_values = [0, .2, .5, .8, .9]
 beta2_values = [.1, .3, .5, .7, .9]
@@ -84,22 +77,25 @@ for index, beta in enumerate(betas):
     project_path = util.mkdr(Project_dir, Project_name_beta, Training)
     print('index: ', index)
 
-
     net_params = {
 
         "pth": project_path,
         "Training": Training,
         "imtype": image_type,
 
+        # kernals for each layer
         "dk" : [4]*lays,
         "gk" : [4]*lays,
 
+        # strides
         "ds": [2]*lays,
         "gs": [2]*lays,
 
+        # no. filters
         "df": [img_channels,64,128,256,512,1],
         "gf": [z_channels,512,256,128,64,img_channels],
 
+        # paddings
         "dp": [1,1,1,1,0],
         "gp": [2,2,2,2,3],
         }
@@ -124,7 +120,7 @@ for index, beta in enumerate(betas):
 
         ## Create and Train CircleNet
 
-        circleNet = Circularity.init_circleNet(net_params["dk"], net_params["ds"], net_params["df"], net_params["dp"])
+        circleNet = Circularity.init_circle_net(net_params["dk"], net_params["ds"], net_params["df"], net_params["dp"])
         circle_dir = 'TrainedCNet'
         circle_path = project_path + circle_dir + '/'
 

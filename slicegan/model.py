@@ -1,5 +1,3 @@
-from re import I
-
 import numpy as np
 
 from slicegan import preprocessing, util, Circularity
@@ -10,9 +8,6 @@ import torch.optim as optim
 import time
 import matplotlib
 import cv2
-import torch.nn.functional as F
-import pickle
-from cv2 import SimpleBlobDetector
 
 noise_distributions = {
     "normal" : torch.distributions.normal.Normal(0,1),

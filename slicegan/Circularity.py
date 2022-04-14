@@ -5,16 +5,9 @@ import torch.backends.cudnn as cudnn
 import torch.optim as optim
 import numpy as np
 from pandas import DataFrame as df
-import time
-import matplotlib
 import cv2
 import torch.nn.functional as F
-import pickle
-import math
-# import scipy.misc
-from PIL import Image
 
-# from cv2 import SimpleBlobDetector
 
 dk = [4] * 6
 ds = [2] * 6
@@ -22,7 +15,7 @@ dp = [1, 1, 1, 1, 0]
 df = [3, 64, 128, 256, 512, 1]
 
 
-def init_circleNet(dk, ds, df, dp):
+def init_circle_net(dk, ds, df, dp):
     class CircleNet(nn.Module):
         def __init__(self):
             super(CircleNet, self).__init__()
@@ -92,10 +85,10 @@ def trainCNet(datatype, realData, l, sf, CNet, project_path):
 
     # Define Network
 
-    cNet = CNet().to(device)
+    c_net = CNet().to(device)
     if ('cuda' in str(device)) and (ngpu > 1):
-        cNet = nn.DataParallel(cNet, list(range(ngpu)))
-    optC = optim.Adam(cNet.parameters(), lr=lrc, betas=(Beta1, Beta2))
+        c_net = nn.DataParallel(c_net, list(range(ngpu)))
+    optC = optim.Adam(c_net.parameters(), lr=lrc, betas=(Beta1, Beta2))
 
     print("Starting CNet Training...")
 
@@ -108,7 +101,7 @@ def trainCNet(datatype, realData, l, sf, CNet, project_path):
             # print(rData)
 
             data_loader_tensor = data_loader_tensors[0].to(device)
-            pred_OutR = cNet(data_loader_tensor).view(-1)
+            pred_OutR = c_net(data_loader_tensor).view(-1)
 
             util.test_plotter(data_loader_tensor, 1, 'twophase', project_path, True)
             # data_loader_tensor = data_loader_tensor.cpu().detach().numpy()
@@ -135,7 +128,7 @@ def trainCNet(datatype, realData, l, sf, CNet, project_path):
 
             predR, realR = int(pred_OutR), int(real_OutR)
 
-            cNet.zero_grad()
+            c_net.zero_grad()
             cLoss = (pred_OutR - real_OutR) ** 2  # if pred_OutR > real_OutR else 0
             closs_list.append(cLoss)
 
@@ -156,7 +149,7 @@ def trainCNet(datatype, realData, l, sf, CNet, project_path):
             optC.step()
 
     cnet_weight_path = project_path + '/circleNet_weights.pt'
-    torch.save(cNet.state_dict(), cnet_weight_path)
+    torch.save(c_net.state_dict(), cnet_weight_path)
 
     # ccloss_list = closs_list[:, :, len(closs_list) / 20]
 
