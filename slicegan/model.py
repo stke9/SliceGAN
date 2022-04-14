@@ -51,7 +51,8 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_ep
         isotropic = False
 
     # batch sizes
-    batch_size = 32
+    # batch_size = 32
+    batch_size = 16
     D_batch_size = 8
     img_per_batch = 900
     N_images = batch_size * img_per_batch
@@ -182,7 +183,7 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_ep
             ### Generator Training
             if i % int(critic_iters) == 0:
                 netG.zero_grad()
-                errG = torch.zeros(1)
+                errG = torch.zeros(1).to(device)
                 noise = torch.randn(batch_size, nz, lz, lz, lz, device=device)
                 # noise = noise_distribution.sample((batch_size, nz, lz, lz, lz)).to(device)
 
@@ -226,7 +227,7 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf, lz, num_ep
 
                             print(f"Slice {itt} has a difference of {diffcirc} circles between real and fake \n")
 
-                        D = torch.zeros(1)
+                        D = torch.zeros(1).to(device)
 
                         for diff in diffcircL:
                             D += diff.view(-1)

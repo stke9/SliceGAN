@@ -160,6 +160,7 @@ def trainCNet(datatype, realData, l, sf, CNet, project_path):
 
     # ccloss_list = closs_list[:, :, len(closs_list) / 20]
 
+    np.save('closs.npy', np.array(closs_list))
     try:
         temp_df = df(closs_list)
         temp_df.to_csv(project_path + '/Circle_Loss.csv', encoding='utf-8', index=False)
@@ -295,7 +296,7 @@ def CircularityLoss(imreal, imfake, CL_CNET):
         detector = cv2.SimpleBlobDetector_create(params)
         kpoints = detector.detect(f)
         gg = len(kpoints)
-        print(f"Slice {f} has a difference of {CL_CNET(f) - gg} \n")
+        # print(f"Slice {f} has a difference of {CL_CNET(f) - gg} \n")
         flen += 1
 
     if rlen != flen:
@@ -306,7 +307,7 @@ def CircularityLoss(imreal, imfake, CL_CNET):
         diffcirc = ((F - R) ** 2) if R > F else 0  # 0 can also be substituted by int((R-F)**2)
         diffcircL.append(diffcirc)
 
-        print(f"Slice {i} has a difference of {diffcirc} circles between real and fake \n")
+        #print(f"Slice {i} has a difference of {diffcirc} circles between real and fake \n")
 
     for diff in diffcircL:
         D += diff
