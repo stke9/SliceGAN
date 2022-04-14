@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.backends.cudnn as cudnn
 import torch.optim as optim
 import numpy as np
-from pandas import DataFrame as df
+from pandas import DataFrame as Df
 import cv2
 import torch.nn.functional as F
 
@@ -94,30 +94,16 @@ def trainCNet(datatype, realData, l, sf, CNet, project_path):
 
     for e in range(numEpochs):
 
-        # loss_tensor = torch.tensor([])
         closs_list = []
-        # loss_tensor_sum = torch.zeros(1)
         for index, data_loader_tensors in enumerate(dataLoader):
-            # print(rData)
 
             data_loader_tensor = data_loader_tensors[0].to(device)
             pred_OutR = c_net(data_loader_tensor).view(-1)
 
             util.test_plotter(data_loader_tensor, 1, 'twophase', project_path, True)
-            # data_loader_tensor = data_loader_tensor.cpu().detach().numpy()
-            # print(data_loader_tensor)
-            # print(f"Type: {type(data_loader_tensor)} Size: {data_loader_tensor.shape}")
-            # cv2.imwrite(project_path + "/slices_cnet.png", data_loader_tensor)
+
             R_img = cv2.imread(project_path + "_slices.png")
 
-            # if e == 0:
-            #     real_OutR, min_area, max_area = numCircles(R_img, 1)
-            #
-            #     if min_area < minAr:
-            #         minAr = min_area - 10
-            #     if max_area > maxAr:
-            #         maxAr = max_area + 10
-            # else:
             detector = cv2.SimpleBlobDetector_create(params)
 
             keypoints = detector.detect(R_img)
@@ -136,34 +122,21 @@ def trainCNet(datatype, realData, l, sf, CNet, project_path):
                 print('cLoss: ', cLoss)
                 print('Pred Out R: ', pred_OutR)
                 print(f"Epoch {e} : Slice {index} - NRC {realR} NPR {predR} Diff {predR - realR}\n")
-            # torch.cat((loss_tensor, torch.tensor([cLoss])))
 
-            # for loss_i in closs_list:
-            #     loss_tensor_sum += loss_i
-            #
-            # fin_e_loss = loss_tensor_sum / index
-            #
-            # loss_tensor_mean = torch.mean(loss_tensor)
-            # print('loss mean: ', loss_tensor_mean)
             cLoss.backward()
             optC.step()
 
     cnet_weight_path = project_path + '/circleNet_weights.pt'
     torch.save(c_net.state_dict(), cnet_weight_path)
 
-    # ccloss_list = closs_list[:, :, len(closs_list) / 20]
-
-    # np.save('closs.npy', np.array(closs_list))
     try:
-        temp_df = df(closs_list)
+        int_closs_list = [int(cLossElement) for cLossElement in closs_list]
+        temp_df = Df(int_closs_list)
         temp_df.to_csv(project_path + '/Circle_Loss.csv', encoding='utf-8', index=False)
 
-        numcloss = [num + 1 for num in range(len(closs_list))]
-        # cnumcloss = [cnum for cnum in range(len(ccloss_list))]
-
-        util.graph_plot([numcloss, closs_list], ['Sub-image', 'CircleNet Loss'], project_path, 'CLossGraph')
-    except:
-        print("\nChange syntax for saving sheet in the trainCNet method in Circularity.py.")
+        util.graph_plot([closs_list], ['CircleNet Loss'], project_path, 'CLossGraph')
+    except Exception as e:
+        print(f"Error! {str(e)} \nChange syntax for saving sheet or plotting graph at the trainCNet method in Circularity.py.")
 
 
 def print_debug(data_loader_tensor, data_loader_tensors, pred_OutR, real_OutR):
@@ -208,7 +181,6 @@ def numCircles(slice_i, area_find=3, MinArea=0, MaxArea=100):
     :return:
     """
     params = cv2.SimpleBlobDetector_Params()
-    sizepoints = []
 
     params.filterByArea = False
     params.filterByConvexity = False
@@ -224,15 +196,10 @@ def numCircles(slice_i, area_find=3, MinArea=0, MaxArea=100):
         detector = cv2.SimpleBlobDetector_create(params)
         keypoints = detector.detect(slice_i)
 
-        # for k in keypoints:
-        #     sizepoints.append(k)
-
         print(len(keypoints))
 
         kmin, kmax = 0, 10000
 
-        # kmax = ((max(sizepoints)/2)**2)*math.pi
-        # kmin = ((min(sizepoints)/2)**2)*math.pi
         return len(keypoints), kmin, kmax
 
     elif area_find == 2:
@@ -288,7 +255,7 @@ def CircularityLoss(imreal, imfake, CL_CNET):
         fakecirc.append(CL_CNET(f))
         detector = cv2.SimpleBlobDetector_create(params)
         kpoints = detector.detect(f)
-        gg = len(kpoints)
+        # gg = len(kpoints)
         # print(f"Slice {f} has a difference of {CL_CNET(f) - gg} \n")
         flen += 1
 
