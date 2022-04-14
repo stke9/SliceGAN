@@ -11,7 +11,7 @@ from slicegan import model, networks, util, Circularity
 import argparse
 # Define project name
 # Project_name = 'Hyperparameter_tuning_binary'
-Project_name = 'CNet_merged_master_final'
+Project_name = 'CNet_merged_master_final_10_epochs_preprocessed'
 
 # Specify project folder.
 Project_dir = 'Trained_Generators'
@@ -64,6 +64,7 @@ beta2_values = [.1, .3, .5, .7, .9]
 test_list = [0, .5]
 # index 0-4: beta1, 5-9 beta2
 betas = [.7, .8, 1]
+betas = [0]
 for index, beta in enumerate(betas):
     beta1 = 0
     beta2 = 0
@@ -71,13 +72,13 @@ for index, beta in enumerate(betas):
     # if index < 5:
     #     beta1 = beta
     #     beta2 = .9
-    if index < 2:
-        beta1 = 0
-        beta2 = beta
-
-    else:
-        beta1 = 0.9
-        beta2 = 0.99
+    # if index < 2:
+    #     beta1 = 0
+    #     beta2 = beta
+    #
+    # else:
+    beta1 = 0.0
+    beta2 = 0.9
 
     Project_name_beta = Project_name + '_beta1_' + str(beta1) + '_beta2_' + str(beta2)
     project_path = util.mkdr(Project_dir, Project_name_beta, Training)
@@ -132,8 +133,8 @@ for index, beta in enumerate(betas):
 
         # if reusing weights
         if use_Circ == 1:
-            #circleNet = Circularity.CircleWeights(circleNet, circle_path, False)
-            print('Uncomment CNet')
+            circleNet = Circularity.CircleWeights(circleNet, circle_path, False)
+            # print('Uncomment CNet')
         # If training circlenet
         if use_Circ == 2:
 

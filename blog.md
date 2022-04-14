@@ -1,4 +1,3 @@
 # SliceGAN blog post
 
 ### Introduction
-
