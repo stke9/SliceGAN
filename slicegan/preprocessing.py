@@ -11,11 +11,11 @@ def batch(data,type,l, sf):
     :param sf: scale factor
     :return:
     """
-    Testing = True
-    if type == 'png' or type == 'jpg':
+    Testing = False
+    if type in ['png', 'jpg', 'tif2D']:
         datasetxyz = []
         for img in data:
-            img = plt.imread(img)
+            img = plt.imread(img) if type != 'tif2D' else tifffile.imread(img)
             if len(img.shape)>2:
                 img = img[:,:,0]
             img = img[::sf,::sf]
@@ -42,7 +42,7 @@ def batch(data,type,l, sf):
             dataset = torch.utils.data.TensorDataset(data)
             datasetxyz.append(dataset)
 
-    elif type=='tif':
+    elif type=='tif3D':
         datasetxyz=[]
         img = np.array(tifffile.imread(data[0]))
         img = img[::sf,::sf,::sf]
@@ -110,6 +110,7 @@ def batch(data,type,l, sf):
             data = torch.FloatTensor(data)
             dataset = torch.utils.data.TensorDataset(data)
             datasetxyz.append(dataset)
+
     elif type=='grayscale':
         datasetxyz = []
         for img in data:
@@ -135,6 +136,7 @@ def batch(data,type,l, sf):
             data = torch.FloatTensor(data)
             dataset = torch.utils.data.TensorDataset(data)
             datasetxyz.append(dataset)
+            
     return datasetxyz
 
 

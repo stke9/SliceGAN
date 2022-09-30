@@ -115,28 +115,14 @@ def post_proc(img,imtype):
         img = img.detach().cpu()
     except:
         pass
-    # for n phase materials, seperate out the channels and take the max
-    if imtype == 'twophase':
-        img_pp = np.zeros(img.shape[2:])
-        p1 = np.array(img[0][0])
-        p2 = np.array(img[0][1])
-        img_pp[(p1 < p2)] = 1  # background, yellow
-        return img_pp
-    if imtype == 'threephase':
-        img_pp = np.zeros(img.shape[2:])
-        p1 = np.array(img[0][0])
-        p2 = np.array(img[0][1])
-        p3 = np.array(img[0][2])
-        img_pp[(p1 > p2) & (p1 > p3)] = 0  # background, yellow
-        img_pp[(p2 > p1) & (p2 > p3)] = 1  # spheres, green
-        img_pp[(p3 > p2) & (p3 > p1)] = 2  # binder, purple
-        return img_pp
-    # colour and grayscale don't require post proc, just a shift
     if imtype == 'colour':
         return np.int_(255 * (np.swapaxes(img[0], 0, -1)))
     if imtype == 'grayscale':
         return 255*img[0][0]
-
+    else:
+        nphase = img.shape[1]
+        return 255*torch.argmax(img, 1)/(nphase-1)
+        
 def test_plotter(img,slcs,imtype,pth):
     """
     creates a fig with 3*slc subplots showing example slices along the three axes
@@ -145,7 +131,7 @@ def test_plotter(img,slcs,imtype,pth):
     :param imtype: image type
     :param pth: where to save plot
     """
-    img = post_proc(img,imtype)
+    img = post_proc(img,imtype)[0]
     fig, axs = plt.subplots(slcs, 3)
     if imtype == 'colour':
         for j in range(slcs):
@@ -196,7 +182,8 @@ def test_img(pth, imtype, netG, nz = 64, lf = 4, periodic=False):
     """
     netG.load_state_dict(torch.load(pth + '_Gen.pt'))
     netG.eval()
-    noise = torch.randn(1, nz, lf, lf, lf)
+    netG.cuda()
+    noise = torch.randn(1, nz, lf, lf, lf).cuda()
     if periodic:
         if periodic[0]:
             noise[:, :, :2] = noise[:, :, -2:]
@@ -204,9 +191,10 @@ def test_img(pth, imtype, netG, nz = 64, lf = 4, periodic=False):
             noise[:, :, :, :2] = noise[:, :, :, -2:]
         if periodic[2]:
             noise[:, :, :, :, :2] = noise[:, :, :, :, -2:]
-    raw = netG(noise)
+    with torch.no_grad():
+        raw = netG(noise)
     print('Postprocessing')
-    gb = post_proc(raw,imtype)
+    gb = post_proc(raw,imtype)[0]
     if periodic:
         if periodic[0]:
             gb = gb[:-1]

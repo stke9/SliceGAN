@@ -57,4 +57,60 @@ def slicegan_nets(pth, Training, imtype, dk,ds,df,dp,gk,gs,gf,gp):
             return x
 
     return Discriminator, Generator
+def slicegan_rc_nets(pth, Training, imtype, dk,ds,df,dp,gk,gs,gf,gp):
+    """
+    Define a generator and Discriminator
+    :param Training: If training, we save params, if not, we load params from previous.
+    This keeps the parameters consistent for older models
+    :return:
+    """
+    #save params
+    params = [dk, ds, df, dp, gk, gs, gf, gp]
+    # if fresh training, save params
+    if Training:
+        with open(pth + '_params.data', 'wb') as filehandle:
+            # store the data as binary data stream
+            pickle.dump(params, filehandle)
+    # if loading model, load the associated params file
+    else:
+        with open(pth + '_params.data', 'rb') as filehandle:
+            # read the data as binary data stream
+            dk, ds, df, dp, gk, gs, gf, gp  = pickle.load(filehandle)
 
+
+    # Make nets
+    class Generator(nn.Module):
+        def __init__(self):
+            super(Generator, self).__init__()
+            self.convs = nn.ModuleList()
+            self.bns = nn.ModuleList()
+            self.rcconv = nn.Conv3d(gf[-2],gf[-1],3,1,0)
+            for lay, (k,s,p) in enumerate(zip(gk,gs,gp)):
+                self.convs.append(nn.ConvTranspose3d(gf[lay], gf[lay+1], k, s, p, bias=False))
+                self.bns.append(nn.BatchNorm3d(gf[lay+1]))
+                # self.bns.append(nn.InstanceNorm3d(gf[lay+1]))
+
+        def forward(self, x):
+            for lay, (conv, bn) in enumerate(zip(self.convs[:-1],self.bns[:-1])):
+                x = F.relu_(bn(conv(x)))
+            size = (int(x.shape[2]-1,)*2,int(x.shape[3]-1,)*2,int(x.shape[3]-1,)*2)
+            up = nn.Upsample(size=size, mode='trilinear', align_corners=False)
+            out = torch.softmax(self.rcconv(up(x)), 1)
+            # print(out.shape)
+            return out
+
+    class Discriminator(nn.Module):
+        def __init__(self):
+            super(Discriminator, self).__init__()
+            self.convs = nn.ModuleList()
+            for lay, (k, s, p) in enumerate(zip(dk, ds, dp)):
+                self.convs.append(nn.Conv2d(df[lay], df[lay + 1], k, s, p, bias=False))
+
+        def forward(self, x):
+            for conv in self.convs[:-1]:
+                x = F.relu_(conv(x))
+            x = self.convs[-1](x)
+            return x
+
+    return Discriminator, Generator
+    

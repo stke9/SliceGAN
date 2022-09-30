@@ -33,16 +33,16 @@ def train(pth, imtype, datatype, real_data, Disc, Gen, nc, l, nz, sf):
     ## Constants for NNs
     matplotlib.use('Agg')
     ngpu = 1
-    num_epochs = 30
+    num_epochs = 100
 
     # batch sizes
-    batch_size = 32
+    batch_size = 8
     D_batch_size = 8
     # optimiser params for G and D
     lrg = 0.0001
     lrd = 0.0001
-    beta1 = 0
-    beta2 = 0.9
+    beta1 = 0.9
+    beta2 = 0.99
     Lambda = 10
     critic_iters = 5
     cudnn.benchmark = True
